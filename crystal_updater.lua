@@ -10,10 +10,14 @@ local VERSION_FILE = STATE .. "/installed_version"
 local function log(s)
   local path = "/CrystalOS/data/update.log"
   pcall(fs.makeDir, "/CrystalOS/data")
-  local f = fs.open(path, "a")
-  if f then f.writeLine(os.date("%Y-%m-%d %H:%M:%S") .. " " .. s); f.close() end
+  local ok, f = pcall(fs.open, path, "a")
+  if ok and f then
+    pcall(f.writeLine, os.date("%Y-%m-%d %H:%M:%S") .. " " .. s)
+    pcall(f.close)
+  end
 end
 local function say(s) print("[CrystalOS] " .. s); log(s) end
+log("Updater started.");
 local function get(url)
   local lastError = "HTTP request failed"
   for attempt = 1, 3 do
@@ -76,6 +80,7 @@ if not okManifest or type(manifest) ~= "table" or type(manifest.version) ~= "str
   say("Manifesto invalido (" .. tostring(manifest) .. "); atualizacao cancelada."); return
 end
 if ... ~= "force" and readVersion() == manifest.version then
+  say("Already up to date (" .. manifest.version .. ").")
   return
 end
 
