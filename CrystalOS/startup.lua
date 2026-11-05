@@ -1,2 +1,2 @@
-os.setComputerLabel("CrystalOS")
-shell.run("/CrystalOS/system/kernel.lua")
+-- CrystalOS startup entry
+shell.run("/startup.lua")
