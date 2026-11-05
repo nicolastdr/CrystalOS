@@ -2,6 +2,8 @@
 -- Run this file to install or repair the complete system automatically.
 local BASE = "https://raw.githubusercontent.com/nicolastdr/CrystalOS/main/"
 local function get(url)
+  -- Avoid stale raw.githubusercontent.com CDN responses.
+  url = url .. "?crystalos_release=0.8.1"
   local last = "HTTP request failed"
   for attempt = 1, 3 do
     local ok, response, reason = pcall(http.get, url, nil, true)
