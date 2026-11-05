@@ -1,17 +1,21 @@
 # CrystalOS para CC:Tweaked
 
-Sistema inicial inspirado em desktops modernos, feito para computadores do CC:Tweaked.
+Sistema inicial de desktop para computadores do Minecraft Java com CC:Tweaked.
 
-## Instalação rápida
-1. No computador do CC:Tweaked, coloque `crystal_installer.lua` na raiz.
-2. Execute `crystal_installer`.
-3. Reinicie o computador.
+## Instalacao online
+1. Ative HTTP nas configuracoes do mundo/servidor.
+2. No computador, execute:
+   `wget run https://raw.githubusercontent.com/nicolastdr/CrystalOS/main/crystal_installer.lua`
+3. Aguarde o instalador e reinicie o computador.
 
-O instalador baixa os arquivos desta branch. Para instalação offline, baixe `CrystalOS_Instalador.zip`, extraia a pasta `CrystalOS` para a raiz do computador e copie `startup.lua` para a raiz.
+Alternativamente, baixe `crystal_installer.lua` e execute `crystal_installer`.
 
-## Requisitos
-- Minecraft Java com CC:Tweaked.
-- HTTP habilitado no servidor/mundo para instalação online.
+## Atualizacoes
+O `startup.lua` executa `crystal_updater.lua` em cada inicializacao. O atualizador consulta `manifest.txt`, baixa a versao completa para uma pasta temporaria e so depois aplica os arquivos. Se um download falhar, a instalacao existente e mantida. Em caso de falha ao substituir arquivos, o atualizador tenta restaurar o backup.
 
-## Estado
-Versão inicial/base. Não é um clone completo do Windows; usa a interface de terminal disponível no CC:Tweaked. Ainda precisa de testes no jogo.
+Os arquivos de usuario em `/.crystal/data` e `/CrystalOS/user` nao fazem parte da lista de arquivos do sistema e nao sao apagados por atualizacoes. O atualizador exige HTTP e internet; sem conexao, inicia a versao instalada.
+
+## Limites desta versao
+- A interface atual usa o terminal de caracteres do CC:Tweaked; nao e uma implementacao grafica pixel-perfect do Windows.
+- A verificacao de integridade usa tamanho dos arquivos, nao hash criptografico.
+- O projeto ainda precisa de teste dentro do Minecraft/CC:Tweaked.
