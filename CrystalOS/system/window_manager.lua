@@ -54,9 +54,10 @@ function W.run(catalog,apps,ui,settings)
     local p=shortcutPos[id] or {x=2+((i-1)%5)*10,y=3+math.floor((i-1)/5)*5}
     local x=clamp(tonumber(p.x) or 2,1,math.max(1,sw-9))
     local y=clamp(tonumber(p.y) or 3,2,math.max(2,sh-4))
-    screen.setCursorPos(x,y); screen.setBackgroundColor(id==shortcuts[selected] and colors.gray or colors.black)
-    screen.setTextColor(colors.white); screen.write("   ")
-    screen.setCursorPos(x+1,y); screen.setTextColor(id=="settings" and colors.cyan or colors.lightBlue); screen.write("◆")
+    local initials=(app.name:gsub("[^%w ]",""):gsub("(%S)%S+","%1")):upper():sub(1,2)
+    if initials=="" then initials=app.id:sub(1,2):upper() end
+    screen.setCursorPos(x,y); screen.setBackgroundColor(id==shortcuts[selected] and colors.blue or colors.gray)
+    screen.setTextColor(colors.white); screen.write(" "..initials.." ")
     screen.setCursorPos(x,y+1); screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
     screen.write(app.name:sub(1,8))
    end
@@ -118,6 +119,49 @@ function W.run(catalog,apps,ui,settings)
   if not ok then item.error=tostring(err); item.co=coroutine.create(function() ui.message("Erro: "..item.title,item.error) end) end
   if coroutine.status(item.co)=="dead" then remove(#windows) end
  end
+ local function startMenu()
+  local query=""
+  local selected=1
+  while true do
+   dimensions()
+   local matches={}
+   for _,app in ipairs(catalog) do
+    if query=="" or app.name:lower():find(query:lower(),1,true) or app.id:lower():find(query:lower(),1,true) then matches[#matches+1]=app end
+   end
+   local mw=math.min(sw-4,34)
+   local mh=math.min(sh-2,math.max(10,#matches+7))
+   local mx=2
+   local my=math.max(1,sh-mh)
+   screen.setBackgroundColor(colors.gray); screen.setTextColor(colors.white)
+   for yy=my,my+mh-1 do screen.setCursorPos(mx,yy); screen.write(string.rep(" ",mw)) end
+   screen.setCursorPos(mx+1,my+1); screen.setTextColor(colors.cyan); screen.write("CRYSTAL  |  INICIAR")
+   screen.setCursorPos(mx+1,my+2); screen.setTextColor(colors.white); screen.write(("Pesquisar: "..query):sub(1,mw-2))
+   local visible=math.max(1,mh-6)
+   for i=1,math.min(#matches,visible) do
+    local yy=my+3+i
+    screen.setCursorPos(mx+1,yy)
+    screen.setBackgroundColor(i==selected and colors.blue or colors.gray)
+    local label=" "..matches[i].name
+    screen.write(label:sub(1,mw-2)..string.rep(" ",math.max(0,mw-2-#label)))
+   end
+   screen.setBackgroundColor(colors.gray); screen.setTextColor(colors.lightGray)
+   screen.setCursorPos(mx+1,my+mh-1); screen.write("Enter abrir  Esc fechar")
+   local ev,a,b,c=os.pullEvent()
+   if ev=="char" then query=query..a; selected=1
+   elseif ev=="paste" then query=query..a; selected=1
+   elseif ev=="key" then
+    if a==keys.escape then return
+    elseif a==keys.backspace then query=query:sub(1,-2); selected=1
+    elseif a==keys.down then selected=math.min(#matches,math.max(1,selected+1))
+    elseif a==keys.up then selected=math.max(1,selected-1)
+    elseif a==keys.enter and matches[selected] then return matches[selected].id end
+   elseif ev=="mouse_click" then
+    if b<mx or b>=mx+mw or c<my or c>=my+mh then return end
+    local index=c-(my+4)
+    if index>=1 and index<=math.min(#matches,visible) and matches[index] then return matches[index].id end
+   end
+  end
+ end
  local function search()
   local old=term.redirect(screen); local id=ui.search(catalog); term.redirect(old)
   if id then startApp(id) end
@@ -175,7 +219,7 @@ function W.run(catalog,apps,ui,settings)
     else desktopDrag=nil end
    elseif c==sh then
     if b<=9 then
-     if #windows==0 then search() else if focus and windows[focus] then windows[focus].minimized=true end; focus=nil end
+     if #windows==0 then local id=startMenu(); if id then startApp(id) end else if focus and windows[focus] then windows[focus].minimized=true end; focus=nil end
     elseif b<=20 then search()
     else
      local x=21
@@ -201,13 +245,7 @@ function W.run(catalog,apps,ui,settings)
       local routed={ev,a,b-item.x,c-item.y}; dispatch(item,routed)
      end
     end
-    if not hit then
-     local cols=sw>=70 and 6 or (sw>=48 and 4 or 3)
-     local cw=math.max(8,math.floor((sw-4)/cols))
-     local col=math.floor((b-2)/cw); local row=math.floor((c-5)/4)
-     local idx=row*cols+col+1
-     if b>=2 and c>=5 and col>=0 and col<cols and row>=0 and idx<=#catalog then selected=idx; startApp(catalog[idx].id) end
-    end
+
    end
   elseif ev=="mouse_drag" then
    if #windows==0 and desktopDrag then
