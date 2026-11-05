@@ -109,7 +109,13 @@ function W.run(catalog,apps,ui,settings)
    else dispatch(windows[focus],event) end
   elseif ev=="char" or ev=="paste" then dispatch(windows[focus],event)
   elseif ev=="mouse_click" then
-   if c==sh then
+   if c<sh and #windows==0 then
+    local cols=sw>=70 and 6 or (sw>=48 and 4 or 3)
+    local cw=math.max(8,math.floor((sw-4)/cols))
+    local col=math.floor((b-2)/cw); local row=math.floor((c-5)/4)
+    local idx=row*cols+col+1
+    if b>=2 and c>=5 and col>=0 and col<cols and row>=0 and idx<=#catalog then selected=idx; startApp(catalog[idx].id) end
+   elseif c==sh then
     if b<=9 then
      if focus and windows[focus] then windows[focus].minimized=true end; focus=nil
     elseif b<=20 then search()
