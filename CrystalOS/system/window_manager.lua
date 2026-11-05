@@ -5,20 +5,60 @@ function W.run(catalog,apps,ui,settings)
  local sw,sh=screen.getSize()
  local windows,focus,serial={},nil,0
  local selected=1
+ local shortcuts={"explorer","terminal","settings","notepad","calculator","hub"}
+ local shortcutPos={}
+ local desktopPath="/CrystalOS/data/desktop"
+ local function loadDesktop()
+  if fs.exists(desktopPath) then
+   local h=fs.open(desktopPath,"r")
+   if h then
+    local raw=h.readAll(); h.close()
+    local ok,data=pcall(textutils.unserialize,raw)
+    if ok and type(data)=="table" then
+     if type(data.shortcuts)=="table" then shortcuts=data.shortcuts end
+     if type(data.positions)=="table" then shortcutPos=data.positions end
+    end
+   end
+  end
+ end
+ local function saveDesktop()
+  fs.makeDir("/CrystalOS/data")
+  local h=fs.open(desktopPath,"w")
+  if h then h.write(textutils.serialize({shortcuts=shortcuts,positions=shortcutPos})); h.close() end
+ end
+ loadDesktop()
+ local desktopDrag=nil
+ local lastDesktopClickId,lastDesktopClickTime=nil,0
+ local function appById(id) for _,a in ipairs(catalog) do if a.id==id then return a end end end
  local function dimensions()
   sw,sh=screen.getSize()
  end
  local function drawDesktop()
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white); screen.clear()
-  screen.setCursorPos(2,2); screen.setTextColor(colors.lightBlue); screen.write("◆ CRYSTALOS")
-  screen.setCursorPos(2,3); screen.setTextColor(colors.lightGray); screen.write("Desktop")
-  local cols=sw>=70 and 6 or (sw>=48 and 4 or 3)
-  local cw=math.max(8,math.floor((sw-4)/cols)); local rows=math.max(1,math.floor((sh-9)/4))
-  for i=1,math.min(#catalog,cols*rows) do
-   local n=i-1; local x=2+(n%cols)*cw; local y=5+math.floor(n/cols)*4
-   screen.setCursorPos(x,y); screen.setBackgroundColor(i==selected and colors.gray or colors.black); screen.write(string.rep(" ",cw-1))
-   ui.logo(catalog[i],x+math.floor((cw-4)/2),y)
-   local name=catalog[i].name; screen.setCursorPos(x+math.max(0,math.floor((cw-#name)/2)),y+2); screen.setTextColor(colors.white); screen.setBackgroundColor(i==selected and colors.gray or colors.black); screen.write(name:sub(1,cw-1))
+  local wallpaper="/CrystalOS/system/wallpaper.nfp"
+  if paintutils and fs.exists(wallpaper) then
+   local ok,img=pcall(paintutils.loadImage,wallpaper)
+   if ok and img then pcall(paintutils.drawImage,img,1,1) end
+  else
+   for y=1,sh-1 do
+    screen.setCursorPos(1,y); screen.setBackgroundColor(y<math.floor(sh/2) and colors.blue or colors.black)
+    screen.write(string.rep(" ",sw))
+   end
+  end
+  screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS")
+  for i,id in ipairs(shortcuts) do
+   local app=appById(id)
+   if app then
+    local p=shortcutPos[id] or {x=2+((i-1)%5)*10,y=3+math.floor((i-1)/5)*5}
+    local x=clamp(tonumber(p.x) or 2,1,math.max(1,sw-9))
+    local y=clamp(tonumber(p.y) or 3,2,math.max(2,sh-4))
+    screen.setCursorPos(x,y); screen.setBackgroundColor(id==shortcuts[selected] and colors.gray or colors.black)
+    screen.setTextColor(colors.white); screen.write("   ")
+    screen.setCursorPos(x+1,y); screen.setTextColor(id=="settings" and colors.cyan or colors.lightBlue); screen.write("◆")
+    screen.setCursorPos(x,y+1); screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
+    screen.write(app.name:sub(1,8))
+   end
   end
  end
  local function drawChrome(item)
@@ -101,22 +141,37 @@ function W.run(catalog,apps,ui,settings)
    elseif a==keys.escape and #windows>0 then if windows[focus] then windows[focus].minimized=true end; focus=nil
    elseif a==keys.tab and #windows>0 then focus=(focus or 0)%#windows+1; windows[focus].minimized=false
    elseif #windows==0 then
-    if a==keys.left then selected=math.max(1,selected-1) elseif a==keys.right then selected=math.min(#catalog,selected+1)
-    elseif a==keys.up then selected=math.max(1,selected-(sw>=70 and 6 or (sw>=48 and 4 or 3)))
-    elseif a==keys.down then selected=math.min(#catalog,selected+(sw>=70 and 6 or (sw>=48 and 4 or 3)))
-    elseif a==keys.enter then startApp(catalog[selected].id)
+    if a==keys.enter and shortcuts[selected] then startApp(shortcuts[selected])
+    elseif a==keys.left or a==keys.up then selected=math.max(1,selected-1)
+    elseif a==keys.right or a==keys.down then selected=math.min(#shortcuts,selected+1)
     elseif a==keys.slash then search()
+    elseif a==keys.a then
+     local old=term.redirect(screen); local id=ui.search(catalog); term.redirect(old)
+     if id then
+      local exists=false; for _,v in ipairs(shortcuts) do if v==id then exists=true end end
+      if not exists then shortcuts[#shortcuts+1]=id; selected=#shortcuts; saveDesktop() end
+     end
+    elseif a==keys.delete or a==keys.backspace then
+     if shortcuts[selected] then table.remove(shortcuts,selected); selected=math.max(1,math.min(selected,#shortcuts)); saveDesktop() end
     elseif a==keys.l then ui.logoStudio(catalog)
     end
    else dispatch(windows[focus],event) end
   elseif ev=="char" or ev=="paste" then dispatch(windows[focus],event)
   elseif ev=="mouse_click" then
    if c<sh and #windows==0 then
-    local cols=sw>=70 and 6 or (sw>=48 and 4 or 3)
-    local cw=math.max(8,math.floor((sw-4)/cols))
-    local col=math.floor((b-2)/cw); local row=math.floor((c-5)/4)
-    local idx=row*cols+col+1
-    if b>=2 and c>=5 and col>=0 and col<cols and row>=0 and idx<=#catalog then selected=idx; startApp(catalog[idx].id) end
+    local hit
+    for i,id in ipairs(shortcuts) do
+     local p=shortcutPos[id] or {x=2+((i-1)%5)*10,y=3+math.floor((i-1)/5)*5}
+     if b>=p.x and b<=p.x+8 and c>=p.y and c<=p.y+1 then hit=i; break end
+    end
+    if hit then
+     selected=hit
+     local id=shortcuts[hit]
+     if lastDesktopClickId==id and os.clock()-lastDesktopClickTime<0.45 then startApp(id) end
+     lastDesktopClickId,lastDesktopClickTime=id,os.clock()
+     local p=shortcutPos[id] or {x=2+((hit-1)%5)*10,y=3+math.floor((hit-1)/5)*5}
+     desktopDrag={id=id,dx=b-p.x,dy=c-p.y}
+    else desktopDrag=nil end
    elseif c==sh then
     if b<=9 then
      if focus and windows[focus] then windows[focus].minimized=true end; focus=nil
@@ -154,12 +209,17 @@ function W.run(catalog,apps,ui,settings)
     end
    end
   elseif ev=="mouse_drag" then
+   if #windows==0 and desktopDrag then
+    local id=desktopDrag.id
+    shortcutPos[id]={x=clamp(b-desktopDrag.dx,1,math.max(1,sw-9)),y=clamp(c-desktopDrag.dy,2,math.max(2,sh-4))}
+    saveDesktop()
+   end
    local item=windows[focus]
    if item and item.drag then
     item.x=clamp(b-item.drag[1],1,math.max(1,sw-item.w+1)); item.y=clamp(c-item.drag[2],1,math.max(1,sh-item.h))
     item.win.reposition(item.x+1,item.y+1,item.w-2,item.h-2)
    elseif item then dispatch(item,{ev,a,b-item.x,c-item.y}) end
-  elseif ev=="mouse_up" then if windows[focus] then windows[focus].drag=nil end
+  elseif ev=="mouse_up" then desktopDrag=nil; if windows[focus] then windows[focus].drag=nil end
   elseif ev=="timer" or ev=="redstone" or ev=="peripheral" or ev=="peripheral_detach" or ev=="modem_message" or ev=="rednet_message" or ev=="http_success" or ev=="http_failure" or ev=="task_complete" then
    for _,item in ipairs(windows) do dispatch(item,event) end
   elseif ev=="term_resize" then dimensions() end
