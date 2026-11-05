@@ -168,6 +168,7 @@ function A.launch(id,ui,catalog,settings)
  elseif id=="3d_lab" then return genericEditor(ui,{name="Crystal 3D Lab"},"/CrystalOS/user/models/modelo.txt")
  elseif id=="code" then return genericEditor(ui,{name="Crystal Code"},"/CrystalOS/user/code/programa.lua")
  elseif id=="theme_studio" then return settings.screen(ui)
+ elseif id=="crystal_ai" then local ai=dofile("/CrystalOS/system/crystal_ai.lua"); return ai.run(ui)
  elseif id=="capture" then return ui.message("Crystal Capture","A API CraftOS nao oferece captura de tela universal. Use o recurso de screenshot do emulador ou do cliente Minecraft.")
  end
  ui.message("CrystalOS","Aplicativo nao encontrado.")

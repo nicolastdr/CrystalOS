@@ -1,5 +1,6 @@
 -- CrystalOS application registry
 return {
+{id="crystal_ai",name="Crystal AI",category="Inteligencia",state="MVP",description="Assistente local com reconhecimento de intencoes, memoria e dicionario."},
 {id="hub",name="Crystal Hub",category="Sistema",state="MVP",description="Central de aplicativos, novidades e atalhos."},
 {id="flow_studio",name="Flow Studio",category="Criacao",state="Planejado",description="Editor visual de fluxos e automacoes."},
 {id="space",name="Crystal Space",category="Sistema",state="Planejado",description="Gerenciador de espacos de trabalho."},

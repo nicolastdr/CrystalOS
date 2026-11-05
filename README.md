@@ -1,5 +1,14 @@
 # CrystalOS para CC:Tweaked
 
+## Crystal AI (0.10.0)
+- Assistente local em Lua, sem chave de API ou servico pago.
+- Reconhecimento aproximado de intencoes por conceitos, termos equivalentes e similaridade de palavras; nao exige frases exatas.
+- Memoria persistente e dicionario local expansivel.
+- Consulta opcional ao Wikcionario em portugues quando HTTP estiver habilitado.
+- Respostas basicas, calculos simples e conversa em portugues. Nao e um LLM e nao possui conhecimento geral ilimitado.
+- Abra **Crystal AI** no catalogo. Comandos: /ajuda, /offline, /online, /ensinar palavra = definicao e /sair.
+
+
 CrystalOS e um ambiente de desktop multitarefa para computadores do Minecraft Java com CC:Tweaked.
 
 ## Instalar
