@@ -26,9 +26,9 @@ function W.run(catalog,apps,ui,settings)
   screen.setBackgroundColor(colors.gray); screen.setTextColor(colors.white)
   for yy=0,h-1 do screen.setCursorPos(x,y+yy); screen.write(string.rep(" ",w)) end
   screen.setCursorPos(x,y); screen.setBackgroundColor(item==windows[focus] and (settings.accent or colors.blue) or colors.gray)
-  local title=(" "..item.title):sub(1,math.max(1,w-12))
+  local title=(" "..item.title):sub(1,math.max(1,w-10))
   screen.write(title)
-  screen.setCursorPos(x+w-11,y); screen.write(" [ _ ][ + ][X]")
+  screen.setCursorPos(x+w-9,y); screen.write("[_][+][X]")
   screen.setBackgroundColor(colors.black)
  end
  local function render()
@@ -102,6 +102,8 @@ function W.run(catalog,apps,ui,settings)
    elseif a==keys.tab and #windows>0 then focus=(focus or 0)%#windows+1; windows[focus].minimized=false
    elseif #windows==0 then
     if a==keys.left then selected=math.max(1,selected-1) elseif a==keys.right then selected=math.min(#catalog,selected+1)
+    elseif a==keys.up then selected=math.max(1,selected-(sw>=70 and 6 or (sw>=48 and 4 or 3)))
+    elseif a==keys.down then selected=math.min(#catalog,selected+(sw>=70 and 6 or (sw>=48 and 4 or 3)))
     elseif a==keys.enter then startApp(catalog[selected].id)
     elseif a==keys.slash then search()
     elseif a==keys.l then ui.logoStudio(catalog)
@@ -133,15 +135,22 @@ function W.run(catalog,apps,ui,settings)
      if c==item.y then
       local rel=b-item.x
       if rel>=item.w-3 then remove(focus)
-      elseif rel>=item.w-8 then
+      elseif rel>=item.w-6 then
        if item.maximized then item.x,item.y,item.w,item.h=item.oldX,item.oldY,item.oldW,item.oldH; item.maximized=false
        else item.oldX,item.oldY,item.oldW,item.oldH=item.x,item.y,item.w,item.h; item.x,item.y,item.w,item.h=1,1,sw,sh-1; item.maximized=true end
        item.win.reposition(item.x+1,item.y+1,item.w-2,item.h-2)
-      elseif rel>=item.w-11 then item.minimized=true; focus=nil
+      elseif rel>=item.w-9 then item.minimized=true; focus=nil
       else item.drag={b-item.x,c-item.y} end
      else
       local routed={ev,a,b-item.x,c-item.y}; dispatch(item,routed)
      end
+    end
+    if not hit then
+     local cols=sw>=70 and 6 or (sw>=48 and 4 or 3)
+     local cw=math.max(8,math.floor((sw-4)/cols))
+     local col=math.floor((b-2)/cw); local row=math.floor((c-5)/4)
+     local idx=row*cols+col+1
+     if b>=2 and c>=5 and col>=0 and col<cols and row>=0 and idx<=#catalog then selected=idx; startApp(catalog[idx].id) end
     end
    end
   elseif ev=="mouse_drag" then
