@@ -1,0 +1,60 @@
+local A={}
+function A.explorer(ui)
+  local path="/"
+  while true do
+    ui.clear(); ui.header("Explorador de arquivos")
+    print("Caminho: "..path); print("")
+    local items=fs.list(path)
+    for i=1,math.min(#items,12) do
+      local p=fs.combine(path,items[i])
+      print((fs.isDir(p) and "[DIR] " or "      ")..items[i])
+    end
+    print(""); print("Digite um caminho; '..' sobe; vazio volta.")
+    write("> "); local s=read()
+    if s=="" then return
+    elseif s==".." then path=fs.getDir(path); if path=="" then path="/" end
+    else
+      local p=fs.combine(path,s)
+      if fs.exists(p) and fs.isDir(p) then path=p
+      elseif fs.exists(p) then
+        ui.clear(); ui.header("Arquivo")
+        local f=fs.open(p,"r"); print(f.readAll():sub(1,700)); f.close()
+        print(""); print("Pressione uma tecla."); os.pullEvent("key")
+      else print("Nao encontrado."); sleep(1) end
+    end
+  end
+end
+function A.notepad(ui)
+  ui.clear(); ui.header("Bloco de notas")
+  print("Digite o texto. Uma linha /salvar encerra e salva.")
+  local lines={}
+  while true do local s=read(); if s=="/salvar" then break end; lines[#lines+1]=s end
+  fs.makeDir("/CrystalOS/user/documents")
+  write("Nome do arquivo: "); local name=read()
+  if name~="" then local f=fs.open("/CrystalOS/user/documents/"..name,"w"); f.write(table.concat(lines,"\n")); f.close() end
+end
+function A.calculator(ui)
+  ui.clear(); ui.header("Calculadora")
+  print("Expressao simples (ex.: 12*5+3)")
+  write("> "); local expr=read()
+  if expr:match("^[%d%+%-%*/%%%^%(%)%.%s]+$") then
+    local fn=load("return "..expr)
+    if fn then local ok,result=pcall(fn); print(ok and tostring(result) or "Expressao invalida.")
+    else print("Expressao invalida.") end
+  else print("Caracteres nao permitidos.") end
+  print(""); print("Pressione uma tecla."); os.pullEvent("key")
+end
+function A.terminal(ui)
+  ui.clear(); ui.header("Terminal")
+  print("Comandos: ls, pwd, mkdir NOME, reboot, exit")
+  while true do
+    write("> "); local cmd=read()
+    if cmd=="exit" then return
+    elseif cmd=="pwd" then print(shell.dir())
+    elseif cmd=="ls" then for _,v in ipairs(fs.list("/")) do print(v) end
+    elseif cmd:match("^mkdir%s+") then fs.makeDir(cmd:match("^mkdir%s+(.+)"))
+    elseif cmd=="reboot" then os.reboot()
+    else print("Comando nao reconhecido.") end
+  end
+end
+return A
