@@ -120,7 +120,8 @@ local function searchApps(catalog)
    elseif a==keys.up then selected=math.max(1,selected-1)
    end
   elseif ev=="mouse_click" and a==1 then
-   local _,my=os.pullEvent -- no-op: coordinates are supplied in event
+   local index=c-7
+   if index>=1 and index<=math.min(#matches,h-10) then return matches[index].id end
   end
  end
 end
