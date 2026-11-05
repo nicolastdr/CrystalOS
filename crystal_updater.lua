@@ -18,9 +18,12 @@ local function log(s)
 end
 local function say(s) print("[CrystalOS] " .. s); log(s) end
 log("Updater started.");
+local requestCounter = 0
 local function get(url)
-  -- Avoid stale raw.githubusercontent.com CDN responses.
-  url = url .. "?crystalos_release=0.8.1"
+  -- Use a unique URL for every request so stale CDN responses cannot be reused.
+  requestCounter = requestCounter + 1
+  local stamp = (os.epoch and os.epoch("utc")) or os.time()
+  url = url .. "?crystalos_release=0.8.2&cb=" .. tostring(stamp) .. "-" .. tostring(requestCounter)
   local lastError = "HTTP request failed"
   for attempt = 1, 3 do
     local ok, response, reason = pcall(http.get, url, nil, true)
