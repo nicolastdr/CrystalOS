@@ -1,33 +1,36 @@
--- Instalador online do CrystalOS para CC:Tweaked
--- Execute: crystal_installer
+-- CrystalOS universal installer for CC:Tweaked
+-- Run: crystal_installer
 local BASE = "https://raw.githubusercontent.com/nicolastdr/CrystalOS/main/"
-local files = {
-  ["CrystalOS/system/kernel.lua"]="system/kernel.lua",
-  ["CrystalOS/system/settings.lua"]="system/settings.lua",
-  ["CrystalOS/system/ui.lua"]="system/ui.lua",
-  ["CrystalOS/system/apps.lua"]="system/apps.lua",
-}
 if not http then
-  print("HTTP indisponivel. Ative HTTP nas configuracoes do servidor/mundo.")
+  print("HTTP is disabled. Enable HTTP in the CC:Tweaked server/world settings.")
   return
 end
-fs.makeDir("/CrystalOS/system")
-fs.makeDir("/CrystalOS/user/documents")
 local function download(url)
-  local ok, response = pcall(http.get, url)
+  local ok, response = pcall(http.get, url, nil, true)
   if not ok or not response then return nil end
-  local body=response.readAll(); response.close(); return body
+  local okRead, body = pcall(response.readAll)
+  pcall(response.close)
+  if okRead then return body end
+  return nil
 end
-for remote, localPath in pairs(files) do
-  write("Baixando "..localPath.." ... ")
-  local body=download(BASE..remote)
-  if not body then print("FALHOU"); print("Verifique HTTP e internet."); return end
-  local f=fs.open("/CrystalOS/"..localPath,"w")
-  if not f then print("ERRO ao gravar "..localPath); return end
-  f.write(body); f.close(); print("OK")
+term.clear(); term.setCursorPos(1,1)
+print("CrystalOS Universal Installer")
+print("----------------------------")
+print("Downloading installer engine...")
+local updater = download(BASE .. "crystal_updater.lua")
+if not updater then
+  print("Could not download updater. Check internet and HTTP.")
+  return
 end
-local startup=download(BASE.."CrystalOS/startup.lua")
-if not startup then print("Nao foi possivel baixar startup.lua."); return end
-local f=fs.open("/startup.lua","w"); f.write(startup); f.close()
-print("")
-print("CrystalOS instalado! Reinicie o computador.")
+local f = fs.open("/crystal_updater.lua", "w")
+if not f then print("Cannot write to computer."); return end
+f.write(updater); f.close()
+print("Installing/updating CrystalOS...")
+shell.run("/crystal_updater.lua", "force")
+if fs.exists("/CrystalOS/system/kernel.lua") then
+  print("")
+  print("CrystalOS files are installed.")
+  print("Restart the computer to start CrystalOS.")
+else
+  print("Installation did not complete. Check the errors above.")
+end
