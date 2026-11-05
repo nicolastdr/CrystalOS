@@ -19,6 +19,8 @@ end
 local function say(s) print("[CrystalOS] " .. s); log(s) end
 log("Updater started.");
 local function get(url)
+  -- Avoid stale raw.githubusercontent.com CDN responses.
+  url = url .. "?crystalos_release=0.8.1"
   local lastError = "HTTP request failed"
   for attempt = 1, 3 do
     local ok, response, reason = pcall(http.get, url, nil, true)
