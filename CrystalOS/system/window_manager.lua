@@ -219,7 +219,7 @@ function W.run(catalog,apps,ui,settings)
     else desktopDrag=nil end
    elseif c==sh then
     if b<=9 then
-     if #windows==0 then local id=startMenu(); if id then startApp(id) end else if focus and windows[focus] then windows[focus].minimized=true end; focus=nil end
+     local id=startMenu(); if id then startApp(id) end
     elseif b<=20 then search()
     else
      local x=21
