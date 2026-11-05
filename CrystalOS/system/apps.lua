@@ -123,9 +123,26 @@ local function clipboard(ui)
 end
 local function vault(ui)
  local path="/CrystalOS/user/vault"; folder(path)
- ui.message("Crystal Vault","Pasta local privada: "..path.."\nAviso: os arquivos nao sao criptografados. Nao guarde senhas ou segredos aqui.")
- A.explorer(ui)
+ while true do
+  ui.clear(); ui.header("Crystal Vault")
+  print("Arquivos locais (nao criptografados):")
+  for _,name in ipairs(fs.list(path)) do print(name) end
+  print(""); print("1 criar arquivo de texto  2 abrir arquivo  0 voltar")
+  local op=ask("Opcao")
+  if op=="0" or op=="" then return
+  elseif op=="1" then
+   local name=ask("Nome do arquivo"):gsub("[/\\\\]","")
+   if name~="" then editor(ui,"Crystal Vault",path.."/"..name) end
+  elseif op=="2" then
+   local name=ask("Nome do arquivo"):gsub("[/\\\\]","")
+   local target=path.."/"..name
+   if fs.exists(target) and not fs.isDir(target) then
+    local f=fs.open(target,"r"); local body=f.readAll(); f.close(); ui.message(name,body)
+   else ui.message("Crystal Vault","Arquivo nao encontrado.") end
+  end
+ end
 end
+
 function A.launch(id,ui,catalog,settings)
  if id=="explorer" then return A.explorer(ui)
  elseif id=="notepad" then return A.notepad(ui)
