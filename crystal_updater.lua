@@ -7,14 +7,28 @@ local STAGE = STATE .. "/stage"
 local BACKUP = STATE .. "/backup"
 local VERSION_FILE = STATE .. "/installed_version"
 
-local function say(s) print("[CrystalOS] " .. s) end
+local function log(s)
+  local path = "/CrystalOS/data/update.log"
+  pcall(fs.makeDir, "/CrystalOS/data")
+  local f = fs.open(path, "a")
+  if f then f.writeLine(os.date("%Y-%m-%d %H:%M:%S") .. " " .. s); f.close() end
+end
+local function say(s) print("[CrystalOS] " .. s); log(s) end
 local function get(url)
-  local ok, response = pcall(http.get, url, nil, true)
-  if not ok or not response then return nil, "HTTP request failed" end
-  local okRead, body = pcall(response.readAll)
-  pcall(response.close)
-  if not okRead or type(body) ~= "string" then return nil, "Invalid response" end
-  return body
+  local lastError = "HTTP request failed"
+  for attempt = 1, 3 do
+    local ok, response, reason = pcall(http.get, url, nil, true)
+    if ok and response then
+      local okRead, body = pcall(response.readAll)
+      pcall(response.close)
+      if okRead and type(body) == "string" then return body end
+      lastError = "Invalid response body"
+    else
+      lastError = tostring(reason or response or "HTTP request failed")
+    end
+    if attempt < 3 then sleep(1) end
+  end
+  return nil, lastError
 end
 local function safePath(path)
   if type(path) ~= "string" or path == "" then return false end
@@ -59,7 +73,7 @@ local manifestText, err = get(BASE .. "manifest.txt")
 if not manifestText then say(err .. "; using installed version."); return end
 local okManifest, manifest = pcall(textutils.unserialize, manifestText)
 if not okManifest or type(manifest) ~= "table" or type(manifest.version) ~= "string" or type(manifest.files) ~= "table" then
-  say("Invalid manifest; update cancelled."); return
+  say("Manifesto invalido (" .. tostring(manifest) .. "); atualizacao cancelada."); return
 end
 if ... ~= "force" and readVersion() == manifest.version then
   return
@@ -77,11 +91,11 @@ for _, entry in ipairs(manifest.files) do
   end
   local body, downloadErr = get(BASE .. entry.path)
   if not body then
-    say("Download failed for " .. entry.path .. ": " .. tostring(downloadErr))
+    say("Falha ao baixar " .. entry.path .. " apos 3 tentativas: " .. tostring(downloadErr))
     fs.delete(STAGE); return
   end
   if entry.size and #body ~= entry.size then
-    say("Size check failed for " .. entry.path .. "; update cancelled.")
+    say("Verificacao de tamanho falhou em " .. entry.path .. " (esperado " .. tostring(entry.size) .. ", recebido " .. tostring(#body) .. "); atualizacao cancelada.")
     fs.delete(STAGE); return
   end
   local target = fs.combine(STAGE, entry.path)
