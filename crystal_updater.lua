@@ -79,9 +79,28 @@ local okManifest, manifest = pcall(textutils.unserialize, manifestText)
 if not okManifest or type(manifest) ~= "table" or type(manifest.version) ~= "string" or type(manifest.files) ~= "table" then
   say("Manifesto invalido (" .. tostring(manifest) .. "); atualizacao cancelada."); return
 end
-if ... ~= "force" and readVersion() == manifest.version then
+local complete = true
+for _, entry in ipairs(manifest.files) do
+  if type(entry) ~= "table" or not safePath(entry.path) then
+    complete = false
+    break
+  end
+  local localPath = fs.combine(ROOT, entry.path)
+  if not fs.exists(localPath) or fs.isDir(localPath) then
+    complete = false
+    break
+  end
+  if entry.size and fs.getSize(localPath) ~= entry.size then
+    complete = false
+    break
+  end
+end
+if ... ~= "force" and readVersion() == manifest.version and complete then
   say("Already up to date (" .. manifest.version .. ").")
   return
+end
+if not complete then
+  say("Missing or damaged files detected; repairing CrystalOS.")
 end
 
 say("Preparing update " .. manifest.version)
