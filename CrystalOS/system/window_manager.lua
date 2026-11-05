@@ -29,6 +29,7 @@ function W.run(catalog,apps,ui,settings)
  loadDesktop()
  local desktopDrag=nil
  local lastDesktopClickId,lastDesktopClickTime=nil,0
+ local function desktopNow() return os.epoch and (os.epoch("utc")/1000) or os.clock() end
  local function appById(id) for _,a in ipairs(catalog) do if a.id==id then return a end end end
  local function dimensions()
   sw,sh=screen.getSize()
@@ -167,8 +168,8 @@ function W.run(catalog,apps,ui,settings)
     if hit then
      selected=hit
      local id=shortcuts[hit]
-     if lastDesktopClickId==id and os.clock()-lastDesktopClickTime<0.45 then startApp(id) end
-     lastDesktopClickId,lastDesktopClickTime=id,os.clock()
+     if lastDesktopClickId==id and desktopNow()-lastDesktopClickTime<0.45 then startApp(id) end
+     lastDesktopClickId,lastDesktopClickTime=id,desktopNow()
      local p=shortcutPos[id] or {x=2+((hit-1)%5)*10,y=3+math.floor((hit-1)/5)*5}
      desktopDrag={id=id,dx=b-p.x,dy=c-p.y}
     else desktopDrag=nil end
