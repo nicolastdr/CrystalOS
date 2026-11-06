@@ -118,7 +118,7 @@ local function makeTerminalShell(initialDir)
  return api,state
 end
 
-function A.crystalTerminal(ui)
+function A.crystalTerminal(ui,catalog)
  local function sizeOf(path)
   if not fs.exists(path) then return 0 end
   if not fs.isDir(path) then return fs.getSize(path) end
@@ -166,8 +166,8 @@ function A.crystalTerminal(ui)
    local capacity=fs.getCapacity and fs.getCapacity("/") or nil
    output("Armazenamento acessivel")
    output("Espaco ocupado: "..bytes(used))
-   output("Espaco livre: "..(free and bytes(free) or "nao informado pelo ambiente"))
-   output("Capacidade: "..(capacity and bytes(capacity) or "nao informada pelo ambiente"))
+   output("Espaco livre: "..(type(free)=="number" and bytes(free) or tostring(free or "nao informado")))
+   output("Capacidade: "..(type(capacity)=="number" and bytes(capacity) or tostring(capacity or "nao informada"))
    output("CrystalOS: "..bytes(sizeOf("/CrystalOS")))
   elseif cmd=="scan" then
    local names=peripheral.getNames()
@@ -191,12 +191,8 @@ function A.crystalTerminal(ui)
     local ext=fs.getName(path):match("%.([^%.]+)$"); output("Extensao: "..(ext or "sem extensao"))
    end
   elseif cmd=="apps" then
-   local f=fs.open("/CrystalOS/system/catalog.lua","r")
-   if not f then output("Catalogo nao encontrado."); return end
-   f.close()
-   output("Aplicativos registrados:")
-   output("Use o menu Iniciar para abrir os aplicativos.")
-   output("Catalogo: /CrystalOS/system/catalog.lua")
+   output("Aplicativos registrados: "..#catalog)
+   for _,app in ipairs(catalog) do output("- "..app.name.." ["..app.id.."]") end
   elseif cmd=="exit" and (args[2] or ""):lower()=="os" then
    os.queueEvent("crystal_exit_os"); return "exit_os"
   elseif cmd=="exit" then return "close"
@@ -322,7 +318,7 @@ function A.launch(id,ui,catalog,settings)
  if id=="explorer" then return A.explorer(ui)
  elseif id=="notepad" then return A.notepad(ui)
  elseif id=="calculator" then return A.calculator(ui)
- elseif id=="crystal_terminal" then return A.crystalTerminal(ui)
+ elseif id=="crystal_terminal" then return A.crystalTerminal(ui,catalog)
  elseif id=="settings" then return settings.screen(ui)
  elseif id=="hub" or id=="store" then return appHub(ui,catalog)
  elseif id=="search" then return search(ui)
