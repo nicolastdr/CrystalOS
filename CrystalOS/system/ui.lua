@@ -11,6 +11,8 @@ local function logoData(app)
  end
  return label,pixels
 end
+local flushScreen
+function U.setFlush(fn) flushScreen=fn end
 function U.init(s) settings=s; settings.load() end
 function U.clear(bg) term.setBackgroundColor(bg or colors.black); term.setTextColor(colors.white); term.clear(); term.setCursorPos(1,1) end
 function U.header(title)
@@ -61,6 +63,7 @@ function U.search(catalog)
   end
   term.setCursorPos(2,h-2); term.setTextColor(colors.lightGray); term.write("Digite para filtrar | Enter abrir | Esc voltar")
   U.footer("Crystal Search")
+  if flushScreen then flushScreen() end
   local ev,a,b,c=os.pullEvent()
   if ev=="char" then query=query..a; selected=1
   elseif ev=="paste" then query=query..a; selected=1
