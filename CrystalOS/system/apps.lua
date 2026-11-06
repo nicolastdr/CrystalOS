@@ -167,8 +167,6 @@ function A.crystalTerminal(ui,catalog)
    output("Armazenamento acessivel")
    output("Espaco ocupado: "..bytes(used))
    output("Espaco livre: "..(type(free)=="number" and bytes(free) or tostring(free or "nao informado")))
-   output("Capacidade: "..(type(capacity)=="number" and bytes(capacity) or tostring(capacity or "nao informada")))
-   output("CrystalOS: "..bytes(sizeOf("/CrystalOS")))
   elseif cmd=="scan" then
    local names=peripheral.getNames()
    output("Perifericos detectados: "..#names)
