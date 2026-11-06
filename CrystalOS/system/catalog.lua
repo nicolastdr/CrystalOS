@@ -24,6 +24,5 @@ return {
 {id="explorer",name="Explorador de arquivos",category="Arquivos",state="MVP",description="Navegacao pelos arquivos do computador."},
 {id="notepad",name="Bloco de notas",category="Produtividade",state="MVP",description="Criacao e edicao de texto simples."},
 {id="calculator",name="Calculadora",category="Produtividade",state="MVP",description="Operacoes matematicas basicas."},
-{id="crystal_terminal",name="Crystal Terminal",category="Sistema",state="MVP",description="Terminal personalizado para diagnostico e administracao do CrystalOS."},
 {id="settings",name="Configuracoes",category="Sistema",state="MVP",description="Preferencias do CrystalOS."}
 }
