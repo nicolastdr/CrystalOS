@@ -41,9 +41,105 @@ function A.calculator(ui)
   local fn=load("return "..expr); if fn then local ok,res=pcall(fn); print(ok and tostring(res) or "Expressao invalida.") else print("Expressao invalida.") end
  else print("Use apenas numeros e operadores.") end; pause()
 end
+-- Divide uma linha de comando em argumentos, respeitando aspas.
+-- Usado apenas quando a API shell.execute nao esta disponivel.
+local function splitCommand(line)
+ local args,buf={},{}
+ local quote=nil
+ local escaped=false
+ local function push()
+  if #buf>0 then args[#args+1]=table.concat(buf); buf={} end
+ end
+ for i=1,#line do
+  local ch=line:sub(i,i)
+  if escaped then buf[#buf+1]=ch; escaped=false
+  elseif ch=="\\" then escaped=true
+  elseif quote then
+   if ch==quote then quote=nil else buf[#buf+1]=ch end
+  elseif ch=="'" or ch=='"' then quote=ch
+  elseif ch:match("%s") then push()
+  else buf[#buf+1]=ch end
+ end
+ if escaped then buf[#buf+1]="\\" end
+ push()
+ return args
+end
+
+local function findProgram(program,currentDir)
+ if program:sub(1,1)=="/" then
+  if fs.exists(program) and not fs.isDir(program) then return program end
+  if fs.exists(program..".lua") then return program..".lua" end
+  return nil
+ end
+ local searchPath=(os.getenv and os.getenv("PATH")) or "/:/rom/programs:/rom/programs/turtle:/rom/programs/fun"
+ local candidates={}
+ if program:find("/",1,true) then
+  candidates[#candidates+1]=fs.combine(currentDir,program)
+ else
+  candidates[#candidates+1]=fs.combine(currentDir,program)
+  for dir in searchPath:gmatch("[^:]+") do candidates[#candidates+1]=fs.combine(dir,program) end
+ end
+ for _,path in ipairs(candidates) do
+  if fs.exists(path) and not fs.isDir(path) then return path end
+  if fs.exists(path..".lua") and not fs.isDir(path..".lua") then return path..".lua" end
+ end
+ return nil
+end
+
+local function runTerminalCommand(line,currentDir)
+ local sh=rawget(_G,"shell")
+ -- execute() interpreta a linha completa, incluindo argumentos e aspas.
+ if type(sh)=="table" and type(sh.execute)=="function" then
+  return sh.execute(line)
+ end
+ local args=splitCommand(line)
+ if #args==0 then return true,currentDir end
+ local command=table.remove(args,1)
+ if command=="cd" then
+  local target=args[1] or "/"
+  local path=fs.combine(currentDir,target)
+  if fs.exists(path) and fs.isDir(path) then return true,path end
+  print("cd: diretorio nao encontrado: "..target)
+  return false,currentDir
+ elseif command=="pwd" then print(currentDir); return true,currentDir
+ elseif command=="clear" or command=="cls" then term.clear(); term.setCursorPos(1,1); return true,currentDir
+ end
+ if type(sh)=="table" and type(sh.run)=="function" then
+  return sh.run(command,unpack(args)),currentDir
+ end
+ -- Fallback para ambientes CraftOS sem a API global shell.
+ if type(os.run)~="function" then
+  print("Este ambiente nao disponibiliza shell nem os.run; nao e possivel executar programas.")
+  return false,currentDir
+ end
+ local path=findProgram(command,currentDir)
+ if not path then
+  print("Programa nao encontrado: "..command)
+  return false,currentDir
+ end
+ local ok,err=os.run(_G,path,unpack(args))
+ if not ok and err then print(tostring(err)) end
+ return ok,currentDir
+end
+
 function A.terminal(ui)
- ui.clear(); ui.header("Terminal"); print("Comandos CraftOS; exit retorna.")
- while true do local cmd=ask(">"); if cmd=="exit" then return end; if cmd~="" then shell.run(cmd) end end
+ local currentDir="/"
+ while true do
+  ui.clear(); ui.header("Terminal")
+  print("Terminal CrystalOS | comandos CraftOS")
+  print("Digite 'exit' para voltar ao CrystalOS.")
+  print("Diretorio: "..currentDir)
+  while true do
+   write(currentDir.."> ")
+   local cmd=read()
+   if not cmd or cmd=="exit" then return end
+   if cmd~="" then
+    local ok,newDir=pcall(runTerminalCommand,cmd,currentDir)
+    if ok and type(newDir)=="string" then currentDir=newDir
+    elseif not ok then print("Erro ao executar comando: "..tostring(newDir)) end
+   end
+  end
+ end
 end
 local function genericEditor(ui,app,path) editor(ui,app.name,path) end
 local function appHub(ui,catalog)
