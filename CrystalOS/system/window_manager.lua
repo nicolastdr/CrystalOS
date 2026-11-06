@@ -123,6 +123,7 @@ function W.run(catalog,apps,ui,settings)
  end
  local function bring(index)
   if not index or not windows[index] then return end
+  if index==#windows and not windows[index].minimized then return end
   local item=table.remove(windows,index); windows[#windows+1]=item; focus=#windows
   item.minimized=false; dirty=true
  end
@@ -218,8 +219,8 @@ function W.run(catalog,apps,ui,settings)
   if ev=="key" then
    if a==keys.q and #windows==0 then return "exit_os"
    elseif a==keys.r and #windows==0 then return "reboot"
-   elseif a==keys.escape and #windows>0 then if windows[focus] then windows[focus].minimized=true end; focus=nil
-   elseif a==keys.tab and #windows>0 then focus=(focus or 0)%#windows+1; windows[focus].minimized=false
+   elseif a==keys.escape and #windows>0 then if windows[focus] then windows[focus].minimized=true; dirty=true end; focus=nil
+   elseif a==keys.tab and #windows>0 then focus=(focus or 0)%#windows+1; windows[focus].minimized=false; dirty=true
    elseif #windows==0 then
     if a==keys.enter and shortcuts[selected] then startApp(shortcuts[selected])
     elseif a==keys.left or a==keys.up then local old=selected; selected=math.max(1,selected-1); if selected~=old then dirty=true end
