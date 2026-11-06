@@ -9,6 +9,7 @@ function W.run(catalog,apps,ui,settings)
  end
  local windows,focus,serial={},nil,0
  local selected=1
+ local heldKeys={}
  local shortcuts={"explorer","settings","notepad","calculator","hub"}
  local shortcutPos={}
  if ui.setFlush then ui.setFlush(flushChangedLines) end
@@ -116,13 +117,14 @@ function W.run(catalog,apps,ui,settings)
  end
  local function remove(index)
   local item=table.remove(windows,index)
+  if item then dirty=true end
   if item then item.win.setVisible(false); if item.co and coroutine.status(item.co)~="dead" then item.closed=true end end
   focus=#windows>0 and #windows or nil
  end
  local function bring(index)
   if not index or not windows[index] then return end
   local item=table.remove(windows,index); windows[#windows+1]=item; focus=#windows
-  item.minimized=false
+  item.minimized=false; dirty=true
  end
  local function startApp(id)
   local app
@@ -135,7 +137,7 @@ function W.run(catalog,apps,ui,settings)
   local win=window.create(screen,2,2,math.max(1,w-2),math.max(1,h-2),false)
   local item={id=id,title=app.name,x=x,y=y,w=w,h=h,win=win,minimized=false}
   item.co=coroutine.create(function() apps.launch(id,ui,catalog,settings) end)
-  windows[#windows+1]=item; focus=#windows
+  windows[#windows+1]=item; focus=#windows; dirty=true
   local old=term.redirect(win); local ok,err=coroutine.resume(item.co); term.redirect(old)
   if not ok then item.error=tostring(err); item.co=coroutine.create(function() ui.message("Erro: "..item.title,item.error) end) end
   if coroutine.status(item.co)=="dead" then remove(#windows) end
@@ -194,6 +196,7 @@ function W.run(catalog,apps,ui,settings)
   local old=term.redirect(item.win)
   local ok,err=coroutine.resume(item.co,unpack(event))
   term.redirect(old)
+  dirty=true
   if not ok then item.error=tostring(err); item.co=coroutine.create(function() ui.message("Erro: "..item.title,item.error) end); local prev=term.redirect(item.win); coroutine.resume(item.co); term.redirect(prev)
   elseif coroutine.status(item.co)=="dead" then
    for i,v in ipairs(windows) do if v==item then remove(i); break end end
@@ -203,10 +206,13 @@ function W.run(catalog,apps,ui,settings)
   render()
   local event={os.pullEventRaw()}
   local ev,a,b,c=unpack(event)
-  if ev=="key" or ev=="char" or ev=="paste" or ev=="mouse_click" or ev=="mouse_drag" or ev=="mouse_up" or ev=="term_resize" then
-   dirty=true
-  elseif (ev=="timer" or ev=="redstone" or ev=="peripheral" or ev=="peripheral_detach" or ev=="modem_message" or ev=="rednet_message" or ev=="http_success" or ev=="http_failure" or ev=="task_complete") and #windows>0 then
-   dirty=true
+  if ev=="key" then
+   heldKeys[a]=true
+   if a==keys.r and (heldKeys[keys.leftCtrl] or heldKeys[keys.rightCtrl]) and (heldKeys[keys.leftShift] or heldKeys[keys.rightShift]) then
+    os.reboot()
+   end
+  elseif ev=="key_up" then
+   heldKeys[a]=nil
   end
   if ev=="key" then
    if a==keys.q and #windows==0 then return "exit_os"
