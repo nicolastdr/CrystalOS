@@ -196,10 +196,11 @@ function W.run(catalog,apps,ui,settings)
   local old=term.redirect(item.win)
   local ok,err=coroutine.resume(item.co,unpack(event))
   term.redirect(old)
-  dirty=true
   if not ok then item.error=tostring(err); item.co=coroutine.create(function() ui.message("Erro: "..item.title,item.error) end); local prev=term.redirect(item.win); coroutine.resume(item.co); term.redirect(prev)
   elseif coroutine.status(item.co)=="dead" then
    for i,v in ipairs(windows) do if v==item then remove(i); break end end
+  else
+   pcall(item.win.redraw); pcall(screen.redraw)
   end
  end
  while true do
@@ -221,18 +222,18 @@ function W.run(catalog,apps,ui,settings)
    elseif a==keys.tab and #windows>0 then focus=(focus or 0)%#windows+1; windows[focus].minimized=false
    elseif #windows==0 then
     if a==keys.enter and shortcuts[selected] then startApp(shortcuts[selected])
-    elseif a==keys.left or a==keys.up then selected=math.max(1,selected-1)
-    elseif a==keys.right or a==keys.down then selected=math.min(#shortcuts,selected+1)
+    elseif a==keys.left or a==keys.up then local old=selected; selected=math.max(1,selected-1); if selected~=old then dirty=true end
+    elseif a==keys.right or a==keys.down then local old=selected; selected=math.min(#shortcuts,selected+1); if selected~=old then dirty=true end
     elseif a==keys.slash then search()
     elseif a==keys.a then
      local old=term.redirect(screen); local id=ui.search(catalog); term.redirect(old)
      if id then
       local exists=false; for _,v in ipairs(shortcuts) do if v==id then exists=true end end
-      if not exists then shortcuts[#shortcuts+1]=id; selected=#shortcuts; saveDesktop() end
+      if not exists then shortcuts[#shortcuts+1]=id; selected=#shortcuts; saveDesktop(); dirty=true end
      end
     elseif a==keys.delete or a==keys.backspace then
-     if shortcuts[selected] then table.remove(shortcuts,selected); selected=math.max(1,math.min(selected,#shortcuts)); saveDesktop() end
-    elseif a==keys.l then ui.logoStudio(catalog)
+     if shortcuts[selected] then table.remove(shortcuts,selected); selected=math.max(1,math.min(selected,#shortcuts)); saveDesktop(); dirty=true end
+    elseif a==keys.l then ui.logoStudio(catalog); dirty=true
     end
    else dispatch(windows[focus],event) end
   elseif ev=="char" or ev=="paste" then dispatch(windows[focus],event)
@@ -244,7 +245,7 @@ function W.run(catalog,apps,ui,settings)
      if b>=p.x and b<=p.x+8 and c>=p.y and c<=p.y+1 then hit=i; break end
     end
     if hit then
-     selected=hit
+     if selected~=hit then selected=hit; dirty=true end
      local id=shortcuts[hit]
      if lastDesktopClickId==id and desktopNow()-lastDesktopClickTime<0.45 then startApp(id) end
      lastDesktopClickId,lastDesktopClickTime=id,desktopNow()
@@ -258,7 +259,7 @@ function W.run(catalog,apps,ui,settings)
     elseif b<=20 then search()
     else
      local x=21
-     for i,item in ipairs(windows) do local len=#item.title+2; if b>=x and b<x+len then if focus==i and not item.minimized then item.minimized=true; focus=nil else bring(i) end; break end; x=x+len+1 end
+     for i,item in ipairs(windows) do local len=#item.title+2; if b>=x and b<x+len then if focus==i and not item.minimized then item.minimized=true; focus=nil; dirty=true else bring(i) end; break end; x=x+len+1 end
     end
    else
     local hit
@@ -272,7 +273,7 @@ function W.run(catalog,apps,ui,settings)
       if rel>=item.w-3 then remove(focus)
       elseif rel>=item.w-6 then
        remove(focus)
-      elseif rel>=item.w-9 then item.minimized=true; focus=nil
+      elseif rel>=item.w-9 then item.minimized=true; focus=nil; dirty=true
       else -- Janelas permanecem maximizadas; arrastar esta barra esta desativado.
       end
      else
@@ -284,8 +285,9 @@ function W.run(catalog,apps,ui,settings)
   elseif ev=="mouse_drag" then
    if #windows==0 and desktopDrag then
     local id=desktopDrag.id
-    shortcutPos[id]={x=clamp(b-desktopDrag.dx,1,math.max(1,sw-9)),y=clamp(c-desktopDrag.dy,2,math.max(2,sh-4))}
-    saveDesktop()
+    local nx=clamp(b-desktopDrag.dx,1,math.max(1,sw-9)); local ny=clamp(c-desktopDrag.dy,2,math.max(2,sh-4))
+    local old=shortcutPos[id] or {}
+    if old.x~=nx or old.y~=ny then shortcutPos[id]={x=nx,y=ny}; saveDesktop(); dirty=true end
    end
    local item=windows[focus]
    if item then dispatch(item,{ev,a,b-item.x,c-item.y}) end
