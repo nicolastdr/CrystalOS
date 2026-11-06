@@ -91,6 +91,8 @@ function W.run(catalog,apps,ui,settings)
    screen.setCursorPos(x,sh); screen.write("["..label.."]")
    x=x+#label+3
   end
+  screen.setBackgroundColor(colors.red); screen.setTextColor(colors.white)
+  screen.setCursorPos(math.max(1,sw-6),sh); screen.write(" Sair ")
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
  end
  local function remove(index)
@@ -219,7 +221,8 @@ function W.run(catalog,apps,ui,settings)
      desktopDrag={id=id,dx=b-p.x,dy=c-p.y}
     else desktopDrag=nil end
    elseif c==sh then
-    if b<=9 then
+    if b>=math.max(1,sw-6) then return "exit_os"
+    elseif b<=9 then
      local id=startMenu(); if id=="__exit_os" then return "exit_os" elseif id then startApp(id) end
     elseif b<=20 then search()
     else
