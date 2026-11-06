@@ -90,7 +90,7 @@ local function runTerminalCommand(line,currentDir)
  local sh=rawget(_G,"shell")
  -- execute() interpreta a linha completa, incluindo argumentos e aspas.
  if type(sh)=="table" and type(sh.execute)=="function" then
-  return sh.execute(line)
+  return sh.execute(line),currentDir
  end
  local args=splitCommand(line)
  if #args==0 then return true,currentDir end
@@ -134,9 +134,9 @@ function A.terminal(ui)
    local cmd=read()
    if not cmd or cmd=="exit" then return end
    if cmd~="" then
-    local ok,newDir=pcall(runTerminalCommand,cmd,currentDir)
-    if ok and type(newDir)=="string" then currentDir=newDir
-    elseif not ok then print("Erro ao executar comando: "..tostring(newDir)) end
+    local callOK,commandOK,newDir=pcall(runTerminalCommand,cmd,currentDir)
+    if callOK and type(newDir)=="string" then currentDir=newDir
+    elseif not callOK then print("Erro ao executar comando: "..tostring(commandOK)) end
    end
   end
  end
@@ -151,9 +151,13 @@ local function search(ui)
  local found={}; listFiles("/",q,found); ui.message("Resultados",#found==0 and "Nenhum arquivo encontrado." or table.concat(found,"\n"))
 end
 local function doctor(ui)
- local w,h=term.getSize(); local free=0; for _,p in ipairs(fs.list("/")) do free=free+1 end
+ local w,h=term.getSize(); local free=0
+ for _,p in ipairs(fs.list("/")) do free=free+1 end
  local modem=peripheral.find("modem")~=nil
- ui.message("Crystal Doctor","Diagnostico CraftOS\nTerminal: "..w.."x"..h.."\nItens na raiz: "..free.."\nModem detectado: "..tostring(modem).."\nHTTP disponivel: "..tostring(http~=nil).."\nEnergia/perifericos: consulte o computador hospedeiro.")
+ local sh=rawget(_G,"shell")
+ local shellRun=type(sh)=="table" and type(sh.run)=="function"
+ local shellExecute=type(sh)=="table" and type(sh.execute)=="function"
+ ui.message("Crystal Doctor","Diagnostico CraftOS\nTerminal: "..w.."x"..h.."\nItens na raiz: "..free.."\nModem detectado: "..tostring(modem).."\nHTTP disponivel: "..tostring(http~=nil).."\nAPI shell: "..tostring(type(sh)=="table").."\nshell.run: "..tostring(shellRun).."\nshell.execute: "..tostring(shellExecute).."\nos.run: "..tostring(type(os.run)=="function").."\nEnergia/perifericos: consulte o computador hospedeiro.")
 end
 local function appforge(ui)
  ui.clear(); ui.header("Crystal AppForge"); print("Criador simples de aplicativos CrystalOS.")
