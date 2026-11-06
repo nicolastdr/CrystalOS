@@ -112,7 +112,8 @@ local function makeTerminalShell(initialDir)
   local args=splitCommand(table.concat({...}," "))
   if #args==0 then return false end
   local program=table.remove(args,1)
-  return execute(program,unpack(args))
+  local unpackArgs=table.unpack or unpack
+   return execute(program,unpackArgs(args))
  end
  return api,state
 end
