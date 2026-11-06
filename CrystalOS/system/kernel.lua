@@ -13,5 +13,13 @@ local settings=load("system/settings.lua")
 local catalog=load("system/catalog.lua")
 local wm=load("system/window_manager.lua")
 ui.init(settings)
-local result=wm.run(catalog,apps,ui,settings)
-if result=="reboot" then os.reboot() elseif result=="shutdown" then os.shutdown() end
+while true do
+ local result=wm.run(catalog,apps,ui,settings)
+ if result=="native_terminal" then
+  term.setBackgroundColor(colors.black); term.setTextColor(colors.white); term.clear(); term.setCursorPos(1,1)
+  print("Terminal nativo do ComputerCraft. Digite exit para voltar ao CrystalOS.")
+  shell.run("/rom/programs/shell.lua")
+ elseif result=="reboot" then os.reboot()
+ elseif result=="shutdown" then os.shutdown()
+ else break end
+end
