@@ -14,4 +14,4 @@ local catalog=load("system/catalog.lua")
 local wm=load("system/window_manager.lua")
 ui.init(settings)
 local result=wm.run(catalog,apps,ui,settings)
-if result=="reboot" then os.reboot() elseif result=="shutdown" then os.shutdown() end
+if result=="reboot" then os.reboot() elseif result=="shutdown" then os.shutdown() end -- exit_os returns to CraftOS
