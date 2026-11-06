@@ -19,6 +19,7 @@ function W.run(catalog,apps,ui,settings)
  local selected=1
  local shortcuts={"explorer","settings","notepad","calculator","hub"}
  local shortcutPos={}
+ if ui.setFlush then ui.setFlush(flushChangedLines) end
  local function appById(id) for _,a in ipairs(catalog) do if a.id==id then return a end end end
  local desktopPath="/CrystalOS/data/desktop"
  local function loadDesktop()
@@ -167,6 +168,7 @@ function W.run(catalog,apps,ui,settings)
    end
    screen.setBackgroundColor(colors.gray); screen.setTextColor(colors.lightGray)
    screen.setCursorPos(mx+1,my+mh-1); screen.write("Enter abrir  Esc fechar")
+   flushChangedLines()
    local ev,a,b,c=os.pullEvent()
    if ev=="char" then query=query..a; selected=1
    elseif ev=="paste" then query=query..a; selected=1
