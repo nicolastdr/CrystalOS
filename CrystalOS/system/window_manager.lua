@@ -47,7 +47,7 @@ function W.run(catalog,apps,ui,settings)
    end
   end
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.4")
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.5")
   for i,id in ipairs(shortcuts) do
    local app=appById(id)
    if app then
@@ -68,9 +68,9 @@ function W.run(catalog,apps,ui,settings)
   screen.setBackgroundColor(colors.gray); screen.setTextColor(colors.white)
   for yy=0,h-1 do screen.setCursorPos(x,y+yy); screen.write(string.rep(" ",w)) end
   screen.setCursorPos(x,y); screen.setBackgroundColor(item==windows[focus] and (settings.accent or colors.blue) or colors.gray)
-  local title=(" "..item.title):sub(1,math.max(1,w-10))
+  local title=(" "..item.title):sub(1,math.max(1,w-8))
   screen.write(title)
-  screen.setCursorPos(x+w-9,y); screen.write("[_][+][X]")
+  screen.setCursorPos(x+w-6,y); screen.write("[_][X]")
   screen.setBackgroundColor(colors.black)
  end
  local function render()
@@ -107,11 +107,9 @@ function W.run(catalog,apps,ui,settings)
   if not app then return end
   for i,item in ipairs(windows) do if item.id==id then bring(i); return end end
   serial=serial+1
-  local w=math.max(18,math.floor(sw*0.72)); local h=math.max(8,math.floor((sh-1)*0.72))
-  w=math.min(w,sw-2); h=math.min(h,sh-3)
-  local x=clamp(2+((serial-1)*3)%math.max(1,sw-w-1),1,math.max(1,sw-w+1))
-  local y=clamp(2+((serial-1)*2)%math.max(1,sh-h-2),1,math.max(1,sh-h))
-  local win=window.create(screen,x+1,y+1,w-2,h-2,false)
+  local w,h=sw,sh-1
+  local x,y=1,1
+  local win=window.create(screen,2,2,math.max(1,w-2),math.max(1,h-2),false)
   local item={id=id,title=app.name,x=x,y=y,w=w,h=h,win=win,minimized=false}
   item.co=coroutine.create(function() apps.launch(id,ui,catalog,settings) end)
   windows[#windows+1]=item; focus=#windows
@@ -129,6 +127,7 @@ function W.run(catalog,apps,ui,settings)
     if query=="" or app.name:lower():find(query:lower(),1,true) or app.id:lower():find(query:lower(),1,true) then matches[#matches+1]=app end
    end
    local mw=math.min(sw-4,34)
+   table.insert(matches,1,{id="native_terminal",name="Terminal nativo do ComputerCraft"})
    local mh=math.min(sh-2,math.max(10,#matches+7))
    local mx=2
    local my=math.max(1,sh-mh)
@@ -157,7 +156,7 @@ function W.run(catalog,apps,ui,settings)
     elseif a==keys.enter and matches[selected] then return matches[selected].id end
    elseif ev=="mouse_click" then
     if b<mx or b>=mx+mw or c<my or c>=my+mh then return end
-    local index=c-(my+4)
+    local index=c-(my+3)
     if index>=1 and index<=math.min(#matches,visible) and matches[index] then return matches[index].id end
    end
   end
@@ -219,7 +218,7 @@ function W.run(catalog,apps,ui,settings)
     else desktopDrag=nil end
    elseif c==sh then
     if b<=9 then
-     local id=startMenu(); if id then startApp(id) end
+     local id=startMenu(); if id=="native_terminal" then return "native_terminal" elseif id then startApp(id) end
     elseif b<=20 then search()
     else
      local x=21
@@ -236,11 +235,10 @@ function W.run(catalog,apps,ui,settings)
       local rel=b-item.x
       if rel>=item.w-3 then remove(focus)
       elseif rel>=item.w-6 then
-       if item.maximized then item.x,item.y,item.w,item.h=item.oldX,item.oldY,item.oldW,item.oldH; item.maximized=false
-       else item.oldX,item.oldY,item.oldW,item.oldH=item.x,item.y,item.w,item.h; item.x,item.y,item.w,item.h=1,1,sw,sh-1; item.maximized=true end
-       item.win.reposition(item.x+1,item.y+1,item.w-2,item.h-2)
+       remove(focus)
       elseif rel>=item.w-9 then item.minimized=true; focus=nil
-      else item.drag={b-item.x,c-item.y} end
+      else -- Janelas permanecem maximizadas; arrastar esta barra esta desativado.
+      end
      else
       local routed={ev,a,b-item.x,c-item.y}; dispatch(item,routed)
      end
@@ -254,10 +252,7 @@ function W.run(catalog,apps,ui,settings)
     saveDesktop()
    end
    local item=windows[focus]
-   if item and item.drag then
-    item.x=clamp(b-item.drag[1],1,math.max(1,sw-item.w+1)); item.y=clamp(c-item.drag[2],1,math.max(1,sh-item.h))
-    item.win.reposition(item.x+1,item.y+1,item.w-2,item.h-2)
-   elseif item then dispatch(item,{ev,a,b-item.x,c-item.y}) end
+   if item then dispatch(item,{ev,a,b-item.x,c-item.y}) end
   elseif ev=="mouse_up" then desktopDrag=nil; if windows[focus] then windows[focus].drag=nil end
   elseif ev=="timer" or ev=="redstone" or ev=="peripheral" or ev=="peripheral_detach" or ev=="modem_message" or ev=="rednet_message" or ev=="http_success" or ev=="http_failure" or ev=="task_complete" then
    for _,item in ipairs(windows) do dispatch(item,event) end
