@@ -104,6 +104,7 @@ local function makeTerminalShell(initialDir)
   local path=api.resolveProgram(program)
   if not path then printError("No such program: "..program); return false end
   local env=setmetatable({shell=api},{__index=_G})
+  env._G=env
   return os.run(env,path,...)
  end
  function api.execute(program,...) return execute(program,...) end
