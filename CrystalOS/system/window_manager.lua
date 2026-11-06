@@ -5,7 +5,7 @@ function W.run(catalog,apps,ui,settings)
  local sw,sh=screen.getSize()
  local windows,focus,serial={},nil,0
  local selected=1
- local shortcuts={"explorer","terminal","settings","notepad","calculator","hub"}
+ local shortcuts={"explorer","crystal_terminal","settings","notepad","calculator","hub"}
  local shortcutPos={}
  local desktopPath="/CrystalOS/data/desktop"
  local function loadDesktop()
@@ -15,7 +15,7 @@ function W.run(catalog,apps,ui,settings)
     local raw=h.readAll(); h.close()
     local ok,data=pcall(textutils.unserialize,raw)
     if ok and type(data)=="table" then
-     if type(data.shortcuts)=="table" then shortcuts=data.shortcuts end
+     if type(data.shortcuts)=="table" then shortcuts=data.shortcuts; for i,id in ipairs(shortcuts) do if id=="terminal" then shortcuts[i]="crystal_terminal" end end end
      if type(data.positions)=="table" then shortcutPos=data.positions end
     end
    end
@@ -127,7 +127,6 @@ function W.run(catalog,apps,ui,settings)
     if query=="" or app.name:lower():find(query:lower(),1,true) or app.id:lower():find(query:lower(),1,true) then matches[#matches+1]=app end
    end
    local mw=math.min(sw-4,34)
-   table.insert(matches,1,{id="native_terminal",name="Terminal nativo do ComputerCraft"})
    local mh=math.min(sh-2,math.max(10,#matches+7))
    local mx=2
    local my=math.max(1,sh-mh)
@@ -218,7 +217,7 @@ function W.run(catalog,apps,ui,settings)
     else desktopDrag=nil end
    elseif c==sh then
     if b<=9 then
-     local id=startMenu(); if id=="native_terminal" then return "native_terminal" elseif id then startApp(id) end
+     local id=startMenu(); if id then startApp(id) end
     elseif b<=20 then search()
     else
      local x=21
@@ -256,6 +255,7 @@ function W.run(catalog,apps,ui,settings)
   elseif ev=="mouse_up" then desktopDrag=nil; if windows[focus] then windows[focus].drag=nil end
   elseif ev=="timer" or ev=="redstone" or ev=="peripheral" or ev=="peripheral_detach" or ev=="modem_message" or ev=="rednet_message" or ev=="http_success" or ev=="http_failure" or ev=="task_complete" then
    for _,item in ipairs(windows) do dispatch(item,event) end
+  elseif ev=="crystal_exit_os" then return "exit_os"
   elseif ev=="term_resize" then dimensions() end
  end
 end
