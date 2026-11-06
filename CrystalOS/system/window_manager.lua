@@ -58,7 +58,7 @@ function W.run(catalog,apps,ui,settings)
    end
   end
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.13")
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.14")
   for i,id in ipairs(shortcuts) do
    local app=appById(id)
    if app then
@@ -84,26 +84,35 @@ function W.run(catalog,apps,ui,settings)
   screen.setCursorPos(x+w-6,y); screen.write("[_][X]")
   screen.setBackgroundColor(colors.black)
  end
+ local dirty=true
+ local rendering=false
  local function render()
-  dimensions(); drawDesktop()
-  for i,item in ipairs(windows) do
-   if not item.minimized then
-    item.win.setVisible(false); drawChrome(item); item.win.setVisible(true); item.win.redraw()
+  if not dirty or rendering then return end
+  rendering=true
+  dirty=false
+  local ok,err=pcall(function()
+   dimensions(); drawDesktop()
+   for i,item in ipairs(windows) do
+    if not item.minimized then
+     item.win.setVisible(false); drawChrome(item); item.win.setVisible(true); item.win.redraw()
+    end
    end
-  end
-  screen.setBackgroundColor(settings.accent or colors.blue); screen.setTextColor(colors.white)
-  screen.setCursorPos(1,sh); screen.clearLine()
-  screen.write(" Iniciar  Pesquisar ")
-  local x=21
-  for i,item in ipairs(windows) do
-   local label=item.title:sub(1,math.max(3,math.floor((sw-24)/math.max(1,#windows))))
-   screen.setCursorPos(x,sh); screen.write("["..label.."]")
-   x=x+#label+3
-  end
-  screen.setBackgroundColor(colors.red); screen.setTextColor(colors.white)
-  screen.setCursorPos(math.max(1,sw-6),sh); screen.write(" Sair ")
-  screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  flushChangedLines()
+   screen.setBackgroundColor(settings.accent or colors.blue); screen.setTextColor(colors.white)
+   screen.setCursorPos(1,sh); screen.clearLine()
+   screen.write(" Iniciar  Pesquisar ")
+   local x=21
+   for i,item in ipairs(windows) do
+    local label=item.title:sub(1,math.max(3,math.floor((sw-24)/math.max(1,#windows))))
+    screen.setCursorPos(x,sh); screen.write("["..label.."]")
+    x=x+#label+3
+   end
+   screen.setBackgroundColor(colors.red); screen.setTextColor(colors.white)
+   screen.setCursorPos(math.max(1,sw-6),sh); screen.write(" Sair ")
+   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
+   flushChangedLines()
+  end)
+  rendering=false
+  if not ok then dirty=true; error(err,0) end
  end
  local function remove(index)
   local item=table.remove(windows,index)
@@ -194,6 +203,11 @@ function W.run(catalog,apps,ui,settings)
   render()
   local event={os.pullEventRaw()}
   local ev,a,b,c=unpack(event)
+  if ev=="key" or ev=="char" or ev=="paste" or ev=="mouse_click" or ev=="mouse_drag" or ev=="mouse_up" or ev=="term_resize" then
+   dirty=true
+  elseif (ev=="timer" or ev=="redstone" or ev=="peripheral" or ev=="peripheral_detach" or ev=="modem_message" or ev=="rednet_message" or ev=="http_success" or ev=="http_failure" or ev=="task_complete") and #windows>0 then
+   dirty=true
+  end
   if ev=="key" then
    if a==keys.q and #windows==0 then return "exit_os"
    elseif a==keys.r and #windows==0 then return "reboot"
