@@ -77,7 +77,11 @@ function W.run(catalog,apps,ui,settings)
   local wallpaper="/CrystalOS/system/wallpaper.nfp"
   if paintutils and fs.exists(wallpaper) then
    local ok,img=pcall(paintutils.loadImage,wallpaper)
-   if ok and img then pcall(paintutils.drawImage,img,1,1) end
+   if ok and img then
+    local previous=term.redirect(screen)
+    pcall(paintutils.drawImage,img,1,1)
+    term.redirect(previous)
+   end
   else
    for y=1,sh-1 do
     screen.setCursorPos(1,y); screen.setBackgroundColor(y<math.floor(sh/2) and colors.blue or colors.black)
@@ -85,7 +89,7 @@ function W.run(catalog,apps,ui,settings)
    end
   end
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.16")
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.17")
   for i,id in ipairs(shortcuts) do
    local app=appById(id)
    if app then
