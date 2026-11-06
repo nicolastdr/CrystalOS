@@ -21,12 +21,15 @@ function W.run(catalog,apps,ui,settings)
    heldKeys[key]=nil
   end
  end
+ local function pack(...)
+  return {n=select("#",...),...}
+ end
  os.pullEvent=function(filter)
   while true do
-   local event={os.pullEventRaw()}
+   local event=pack(os.pullEventRaw())
    checkEmergencyKey(event[1],event[2])
    if event[1]=="terminate" then error("Terminated",0) end
-   if not filter or event[1]==filter then return unpack(event) end
+   if not filter or event[1]==filter then return unpack(event,1,event.n) end
   end
  end
  local function leave(value)
@@ -82,7 +85,7 @@ function W.run(catalog,apps,ui,settings)
    end
   end
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.15")
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.16")
   for i,id in ipairs(shortcuts) do
    local app=appById(id)
    if app then
@@ -215,16 +218,40 @@ function W.run(catalog,apps,ui,settings)
   local old=term.redirect(screen); local id=ui.search(catalog); term.redirect(old)
   if id then startApp(id) end
  end
+ local function snapshot(win)
+  local out={}
+  local _,height=win.getSize()
+  for y=1,height do
+   local line,fg,bg=win.getLine(y)
+   out[#out+1]=line
+   out[#out+1]=fg
+   out[#out+1]=bg
+  end
+  local cx,cy=win.getCursorPos()
+  out[#out+1]=tostring(cx)..":"..tostring(cy)..":"..tostring(win.getCursorBlink())
+  return table.concat(out,"\0")
+ end
  local function dispatch(item,event)
   if not item or item.minimized or not item.co or coroutine.status(item.co)=="dead" then return end
+  local before
+  local snapOK,snapValue=pcall(snapshot,item.win)
+  if snapOK then before=snapValue end
   local old=term.redirect(item.win)
   local ok,err=coroutine.resume(item.co,unpack(event))
   term.redirect(old)
-  if not ok then item.error=tostring(err); item.co=coroutine.create(function() ui.message("Erro: "..item.title,item.error) end); local prev=term.redirect(item.win); coroutine.resume(item.co); term.redirect(prev)
+  if not ok then
+   item.error=tostring(err)
+   item.co=coroutine.create(function() ui.message("Erro: "..item.title,item.error) end)
+   local prev=term.redirect(item.win)
+   coroutine.resume(item.co)
+   term.redirect(prev)
   elseif coroutine.status(item.co)=="dead" then
    for i,v in ipairs(windows) do if v==item then remove(i); break end end
-  else
-   pcall(item.win.redraw); pcall(screen.redraw)
+  end
+  local afterOK,after=pcall(snapshot,item.win)
+  if afterOK and before~=after then
+   pcall(item.win.redraw)
+   pcall(screen.redraw)
   end
  end
  while true do
@@ -272,7 +299,7 @@ function W.run(catalog,apps,ui,settings)
    elseif c==sh then
     if b>=math.max(1,sw-6) then return leave("exit_os")
     elseif b<=9 then
-     local id=startMenu(); if id=="__exit_os" then return "exit_os" elseif id then startApp(id) end
+     local id=startMenu(); if id=="__exit_os" then return leave("exit_os") elseif id then startApp(id) end
     elseif b<=20 then search()
     else
      local x=21
