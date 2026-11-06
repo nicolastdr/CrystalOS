@@ -118,30 +118,101 @@ local function makeTerminalShell(initialDir)
  return api,state
 end
 
-function A.terminal(ui)
- local shellApi,state=makeTerminalShell("/")
- while true do
-  ui.clear(); ui.header("Terminal")
-  print("Terminal CrystalOS | comandos CraftOS")
-  print("Digite 'exit' para voltar ao CrystalOS.")
-  print("Diretorio: "..state.dir)
-  write(state.dir.."> ")
-  local cmd=read()
-  if not cmd or cmd=="exit" then return end
-  if cmd~="" then
-   local first=splitCommand(cmd)
-   if first[1]=="cd" then
-    local target=first[2] or "/"
-    local ok,err=pcall(shellApi.setDir,target)
-    if not ok then printError(tostring(err)); sleep(1) end
-   elseif first[1]=="pwd" then print(state.dir); sleep(1)
-   elseif first[1]=="clear" or first[1]=="cls" then
-    -- A proxima iteracao redesenha a tela do terminal.
-   else
-    local ok,result=pcall(shellApi.run,cmd)
-    if not ok then printError(tostring(result)); sleep(1) end
+function A.crystalTerminal(ui)
+ local function sizeOf(path)
+  if not fs.exists(path) then return 0 end
+  if not fs.isDir(path) then return fs.getSize(path) end
+  local total=0
+  for _,name in ipairs(fs.list(path)) do total=total+sizeOf(fs.combine(path,name)) end
+  return total
+ end
+ local function bytes(n)
+  if n>=1024*1024 then return string.format("%.2f MB",n/1024/1024)
+  elseif n>=1024 then return string.format("%.2f KB",n/1024)
+  else return tostring(n).." bytes" end
+ end
+ local function output(s) print(tostring(s)) end
+ local function runCommand(line)
+  local args=splitCommand(line); local cmd=(args[1] or ""):lower()
+  if cmd=="" then return
+  elseif cmd=="help" or cmd=="ajuda" then
+   output("Comandos CrystalOS:")
+   output("help - mostra esta ajuda")
+   output("clear - limpa a tela")
+   output("about - informacoes do CrystalOS")
+   output("sysinfo - estado do computador e ambiente")
+   output("storage - uso de armazenamento")
+   output("scan - detecta perifericos conectados")
+   output("inspect <caminho> - analisa arquivo ou pasta")
+   output("apps - lista aplicativos instalados")
+   output("where - mostra a pasta atual")
+   output("exit OS - encerra o CrystalOS e retorna ao CraftOS")
+   output("exit - fecha apenas este aplicativo")
+  elseif cmd=="clear" or cmd=="cls" then ui.clear()
+  elseif cmd=="about" then output("CrystalOS 0.9.6 | Crystal Terminal")
+  elseif cmd=="where" then output("Diretorio atual: /CrystalOS")
+  elseif cmd=="sysinfo" then
+   local w,h=term.getSize()
+   output("Sistema: CrystalOS 0.9.6")
+   output("Ambiente: "..(os.version and os.version() or "CraftOS"))
+   output("Computador ID: "..tostring(os.getComputerID and os.getComputerID() or "indisponivel"))
+   output("Label: "..tostring(os.getComputerLabel and os.getComputerLabel() or "sem nome"))
+   output("Terminal: "..w.." x "..h)
+   output("HTTP: "..tostring(http~=nil))
+   output("Redstone: "..tostring(redstone~=nil))
+  elseif cmd=="storage" then
+   local used=sizeOf("/")
+   local free=fs.getFreeSpace and fs.getFreeSpace("/") or nil
+   local capacity=fs.getCapacity and fs.getCapacity("/") or nil
+   output("Armazenamento acessivel")
+   output("Espaco ocupado: "..bytes(used))
+   output("Espaco livre: "..(free and bytes(free) or "nao informado pelo ambiente"))
+   output("Capacidade: "..(capacity and bytes(capacity) or "nao informada pelo ambiente"))
+   output("CrystalOS: "..bytes(sizeOf("/CrystalOS")))
+  elseif cmd=="scan" then
+   local names=peripheral.getNames()
+   output("Perifericos detectados: "..#names)
+   for _,name in ipairs(names) do
+    local types=peripheral.getType(name)
+    output("- "..name.." : "..tostring(types))
    end
-  end
+   output("Modem rednet: "..tostring(peripheral.find("modem")~=nil))
+   output("Monitor: "..tostring(peripheral.find("monitor")~=nil))
+   output("Drive: "..tostring(peripheral.find("drive")~=nil))
+  elseif cmd=="inspect" then
+   local path=args[2]
+   if not path then output("Uso: inspect <caminho>")
+   elseif not fs.exists(path) then output("Caminho nao encontrado: "..path)
+   elseif fs.isDir(path) then
+    local count=0; for _ in ipairs(fs.list(path)) do count=count+1 end
+    output("Tipo: pasta"); output("Itens diretos: "..count); output("Tamanho total: "..bytes(sizeOf(path)))
+   else
+    output("Tipo: arquivo"); output("Tamanho: "..bytes(fs.getSize(path))); output("Nome: "..fs.getName(path))
+    local ext=fs.getName(path):match("%.([^%.]+)$"); output("Extensao: "..(ext or "sem extensao"))
+   end
+  elseif cmd=="apps" then
+   local f=fs.open("/CrystalOS/system/catalog.lua","r")
+   if not f then output("Catalogo nao encontrado."); return end
+   f.close()
+   output("Aplicativos registrados:")
+   output("Use o menu Iniciar para abrir os aplicativos.")
+   output("Catalogo: /CrystalOS/system/catalog.lua")
+  elseif cmd=="exit" and (args[2] or ""):lower()=="os" then
+   os.queueEvent("crystal_exit_os"); return "exit_os"
+  elseif cmd=="exit" then return "close"
+  else output("Comando desconhecido: "..cmd..". Digite help.") end
+ end
+ while true do
+  ui.clear(); ui.header("Crystal Terminal")
+  print("Terminal de administracao do CrystalOS 0.9.6")
+  print("Digite help para ver os comandos.")
+  print("exit OS sai completamente do CrystalOS.")
+  print("")
+  local line=read()
+  local result=runCommand(line or "")
+  if result=="exit_os" then return "exit_os"
+  elseif result=="close" then return end
+  if result~="exit_os" then pause() end
  end
 end
 
@@ -251,7 +322,7 @@ function A.launch(id,ui,catalog,settings)
  if id=="explorer" then return A.explorer(ui)
  elseif id=="notepad" then return A.notepad(ui)
  elseif id=="calculator" then return A.calculator(ui)
- elseif id=="terminal" then return A.terminal(ui)
+ elseif id=="crystal_terminal" then return A.crystalTerminal(ui)
  elseif id=="settings" then return settings.screen(ui)
  elseif id=="hub" or id=="store" then return appHub(ui,catalog)
  elseif id=="search" then return search(ui)
