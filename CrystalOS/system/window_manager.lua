@@ -7,6 +7,7 @@ function W.run(catalog,apps,ui,settings)
  local selected=1
  local shortcuts={"explorer","settings","notepad","calculator","hub"}
  local shortcutPos={}
+ local function appById(id) for _,a in ipairs(catalog) do if a.id==id then return a end end end
  local desktopPath="/CrystalOS/data/desktop"
  local function loadDesktop()
   if fs.exists(desktopPath) then
@@ -32,7 +33,6 @@ function W.run(catalog,apps,ui,settings)
  local desktopDrag=nil
  local lastDesktopClickId,lastDesktopClickTime=nil,0
  local function desktopNow() return os.epoch and (os.epoch("utc")/1000) or os.clock() end
- local function appById(id) for _,a in ipairs(catalog) do if a.id==id then return a end end end
  local function dimensions()
   sw,sh=screen.getSize()
  end
