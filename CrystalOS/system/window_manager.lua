@@ -1,8 +1,20 @@
 local W={}
 local function clamp(v,lo,hi) return math.max(lo,math.min(hi,v)) end
 function W.run(catalog,apps,ui,settings)
- local screen=term.current()
- local sw,sh=screen.getSize()
+ local physical=term.current()
+ local sw,sh=physical.getSize()
+ local screen=window.create(physical,1,1,sw,sh,false)
+ local previousLines={}
+ local function flushChangedLines()
+  for y=1,sh do
+   local line,fg,bg=screen.getLine(y)
+   local signature=line..fg..bg
+   if previousLines[y]~=signature then
+    physical.setCursorPos(1,y); physical.clearLine(); physical.blit(line,fg,bg)
+    previousLines[y]=signature
+   end
+  end
+ end
  local windows,focus,serial={},nil,0
  local selected=1
  local shortcuts={"explorer","settings","notepad","calculator","hub"}
@@ -34,7 +46,12 @@ function W.run(catalog,apps,ui,settings)
  local lastDesktopClickId,lastDesktopClickTime=nil,0
  local function desktopNow() return os.epoch and (os.epoch("utc")/1000) or os.clock() end
  local function dimensions()
-  sw,sh=screen.getSize()
+  local nw,nh=physical.getSize()
+  if nw~=sw or nh~=sh then
+   sw,sh=nw,nh
+   screen.reposition(1,1,sw,sh)
+   previousLines={}
+  end
  end
  local function drawDesktop()
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white); screen.clear()
@@ -49,7 +66,7 @@ function W.run(catalog,apps,ui,settings)
    end
   end
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.10")
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.11")
   for i,id in ipairs(shortcuts) do
    local app=appById(id)
    if app then
@@ -94,6 +111,7 @@ function W.run(catalog,apps,ui,settings)
   screen.setBackgroundColor(colors.red); screen.setTextColor(colors.white)
   screen.setCursorPos(math.max(1,sw-6),sh); screen.write(" Sair ")
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
+  flushChangedLines()
  end
  local function remove(index)
   local item=table.remove(windows,index)
