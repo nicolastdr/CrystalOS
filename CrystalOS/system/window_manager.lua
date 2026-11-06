@@ -4,16 +4,8 @@ function W.run(catalog,apps,ui,settings)
  local physical=term.current()
  local sw,sh=physical.getSize()
  local screen=window.create(physical,1,1,sw,sh,false)
- local previousLines={}
  local function flushChangedLines()
-  for y=1,sh do
-   local line,fg,bg=screen.getLine(y)
-   local signature=line..fg..bg
-   if previousLines[y]~=signature then
-    physical.setCursorPos(1,y); physical.clearLine(); physical.blit(line,fg,bg)
-    previousLines[y]=signature
-   end
-  end
+  screen.redraw()
  end
  local windows,focus,serial={},nil,0
  local selected=1
@@ -51,7 +43,6 @@ function W.run(catalog,apps,ui,settings)
   if nw~=sw or nh~=sh then
    sw,sh=nw,nh
    screen.reposition(1,1,sw,sh)
-   previousLines={}
   end
  end
  local function drawDesktop()
@@ -67,7 +58,7 @@ function W.run(catalog,apps,ui,settings)
    end
   end
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.11")
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.12")
   for i,id in ipairs(shortcuts) do
    local app=appById(id)
    if app then
