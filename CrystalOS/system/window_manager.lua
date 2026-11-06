@@ -182,7 +182,7 @@ function W.run(catalog,apps,ui,settings)
   local event={os.pullEventRaw()}
   local ev,a,b,c=unpack(event)
   if ev=="key" then
-   if a==keys.q and #windows==0 then return "shutdown"
+   if a==keys.q and #windows==0 then return "exit_os"
    elseif a==keys.r and #windows==0 then return "reboot"
    elseif a==keys.escape and #windows>0 then if windows[focus] then windows[focus].minimized=true end; focus=nil
    elseif a==keys.tab and #windows>0 then focus=(focus or 0)%#windows+1; windows[focus].minimized=false
