@@ -3,20 +3,23 @@ local function clamp(v,lo,hi) return math.max(lo,math.min(hi,v)) end
 function W.run(catalog,apps,ui,settings)
  local physical=term.current()
  local sw,sh=physical.getSize()
- local screen=window.create(physical,1,1,sw,sh,false)
+ local screen=window.create(physical,1,1,sw,sh,true)
+ screen.setVisible(true)
  local function flushChangedLines()
   screen.redraw()
  end
  local windows,focus,serial={},nil,0
  local selected=1
  local heldKeys={}
+ local exitRequested=false
  local originalPullEvent=os.pullEvent
  local function checkEmergencyKey(ev,key)
   if ev=="key" then
    heldKeys[key]=true
-   if key==keys.r and (heldKeys[keys.leftCtrl] or heldKeys[keys.rightCtrl]) and (heldKeys[keys.leftShift] or heldKeys[keys.rightShift]) then
-    os.reboot()
-   end
+   local ctrl=heldKeys[keys.leftCtrl] or heldKeys[keys.rightCtrl]
+   local shift=heldKeys[keys.leftShift] or heldKeys[keys.rightShift]
+   if ctrl and shift and key==keys.r then os.reboot() end
+   if ctrl and shift and key==keys.e then exitRequested=true end
   elseif ev=="key_up" then
    heldKeys[key]=nil
   end
@@ -28,6 +31,7 @@ function W.run(catalog,apps,ui,settings)
   while true do
    local event=pack(os.pullEventRaw())
    checkEmergencyKey(event[1],event[2])
+   if exitRequested then return "crystal_exit" end
    if event[1]=="terminate" then error("Terminated",0) end
    if not filter or event[1]==filter then return unpack(event,1,event.n) end
   end
@@ -89,7 +93,7 @@ function W.run(catalog,apps,ui,settings)
    end
   end
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.17")
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.18")
   for i,id in ipairs(shortcuts) do
    local app=appById(id)
    if app then
@@ -203,6 +207,7 @@ function W.run(catalog,apps,ui,settings)
    screen.setCursorPos(mx+1,my+mh-1); screen.write("Enter abrir  Esc fechar")
    flushChangedLines()
    local ev,a,b,c=os.pullEvent()
+   if ev=="crystal_exit" then return "__exit_os" end
    if ev=="char" then query=query..a; selected=1
    elseif ev=="paste" then query=query..a; selected=1
    elseif ev=="key" then
@@ -220,7 +225,7 @@ function W.run(catalog,apps,ui,settings)
  end
  local function search()
   local old=term.redirect(screen); local id=ui.search(catalog); term.redirect(old)
-  if id then startApp(id) end
+  if id=="__exit_os" then exitRequested=true; return elseif id then startApp(id) end
  end
  local function snapshot(win)
   local out={}
@@ -263,10 +268,9 @@ function W.run(catalog,apps,ui,settings)
   local event={os.pullEventRaw()}
   local ev,a,b,c=unpack(event)
   checkEmergencyKey(ev,a)
+  if exitRequested then return leave("exit_os") end
   if ev=="key" then
-   if a==keys.q and #windows==0 then return leave("exit_os")
-   elseif a==keys.r and #windows==0 then return leave("reboot")
-   elseif a==keys.escape and #windows>0 then if windows[focus] then windows[focus].minimized=true; dirty=true end; focus=nil
+   if a==keys.escape and #windows>0 then if windows[focus] then windows[focus].minimized=true; dirty=true end; focus=nil
    elseif a==keys.tab and #windows>0 then focus=(focus or 0)%#windows+1; windows[focus].minimized=false; dirty=true
    elseif #windows==0 then
     if a==keys.enter and shortcuts[selected] then startApp(shortcuts[selected])
