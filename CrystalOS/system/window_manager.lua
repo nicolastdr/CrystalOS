@@ -10,6 +10,29 @@ function W.run(catalog,apps,ui,settings)
  local windows,focus,serial={},nil,0
  local selected=1
  local heldKeys={}
+ local originalPullEvent=os.pullEvent
+ local function checkEmergencyKey(ev,key)
+  if ev=="key" then
+   heldKeys[key]=true
+   if key==keys.r and (heldKeys[keys.leftCtrl] or heldKeys[keys.rightCtrl]) and (heldKeys[keys.leftShift] or heldKeys[keys.rightShift]) then
+    os.reboot()
+   end
+  elseif ev=="key_up" then
+   heldKeys[key]=nil
+  end
+ end
+ os.pullEvent=function(filter)
+  while true do
+   local event={os.pullEventRaw()}
+   checkEmergencyKey(event[1],event[2])
+   if event[1]=="terminate" then error("Terminated",0) end
+   if not filter or event[1]==filter then return unpack(event) end
+  end
+ end
+ local function leave(value)
+  os.pullEvent=originalPullEvent
+  return value
+ end
  local shortcuts={"explorer","settings","notepad","calculator","hub"}
  local shortcutPos={}
  if ui.setFlush then ui.setFlush(flushChangedLines) end
@@ -208,17 +231,10 @@ function W.run(catalog,apps,ui,settings)
   render()
   local event={os.pullEventRaw()}
   local ev,a,b,c=unpack(event)
+  checkEmergencyKey(ev,a)
   if ev=="key" then
-   heldKeys[a]=true
-   if a==keys.r and (heldKeys[keys.leftCtrl] or heldKeys[keys.rightCtrl]) and (heldKeys[keys.leftShift] or heldKeys[keys.rightShift]) then
-    os.reboot()
-   end
-  elseif ev=="key_up" then
-   heldKeys[a]=nil
-  end
-  if ev=="key" then
-   if a==keys.q and #windows==0 then return "exit_os"
-   elseif a==keys.r and #windows==0 then return "reboot"
+   if a==keys.q and #windows==0 then return leave("exit_os")
+   elseif a==keys.r and #windows==0 then return leave("reboot")
    elseif a==keys.escape and #windows>0 then if windows[focus] then windows[focus].minimized=true; dirty=true end; focus=nil
    elseif a==keys.tab and #windows>0 then focus=(focus or 0)%#windows+1; windows[focus].minimized=false; dirty=true
    elseif #windows==0 then
@@ -254,7 +270,7 @@ function W.run(catalog,apps,ui,settings)
      desktopDrag={id=id,dx=b-p.x,dy=c-p.y}
     else desktopDrag=nil end
    elseif c==sh then
-    if b>=math.max(1,sw-6) then return "exit_os"
+    if b>=math.max(1,sw-6) then return leave("exit_os")
     elseif b<=9 then
      local id=startMenu(); if id=="__exit_os" then return "exit_os" elseif id then startApp(id) end
     elseif b<=20 then search()
