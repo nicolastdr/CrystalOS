@@ -65,7 +65,8 @@ function U.search(catalog)
   U.footer("Crystal Search")
   if flushScreen then flushScreen() end
   local ev,a,b,c=os.pullEvent()
-  if ev=="char" then query=query..a; selected=1
+  if ev=="crystal_exit" then return "__exit_os"
+  elseif ev=="char" then query=query..a; selected=1
   elseif ev=="paste" then query=query..a; selected=1
   elseif ev=="key" then
    if a==keys.backspace then query=query:sub(1,-2); selected=1
@@ -111,8 +112,7 @@ function U.desktop(catalog)
   U.footer("CrystalOS")
   local ev,a,b,c=os.pullEvent()
   if ev=="key" then
-   if a==keys.q then return "shutdown" elseif a==keys.r then return "reboot"
-   elseif a==keys.l then U.logoStudio(catalog)
+   if a==keys.l then U.logoStudio(catalog)
    elseif a==keys.slash then local id=U.search(catalog); if id then return id end
    elseif a==keys.enter and catalog[selected] then return catalog[selected].id
    elseif a==keys.right then selected=math.min(#catalog,selected+1)
