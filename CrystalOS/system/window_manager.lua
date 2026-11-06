@@ -264,6 +264,7 @@ function W.run(catalog,apps,ui,settings)
   end
  end
  while true do
+  if exitRequested then return leave("exit_os") end
   render()
   local event={os.pullEventRaw()}
   local ev,a,b,c=unpack(event)
