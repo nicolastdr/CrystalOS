@@ -41,10 +41,109 @@ function A.calculator(ui)
   local fn=load("return "..expr); if fn then local ok,res=pcall(fn); print(ok and tostring(res) or "Expressao invalida.") else print("Expressao invalida.") end
  else print("Use apenas numeros e operadores.") end; pause()
 end
-function A.terminal(ui)
- ui.clear(); ui.header("Terminal"); print("Comandos CraftOS; exit retorna.")
- while true do local cmd=ask(">"); if cmd=="exit" then return end; if cmd~="" then shell.run(cmd) end end
+-- Divide uma linha de comando em argumentos, respeitando aspas.
+-- Usado apenas quando a API shell.execute nao esta disponivel.
+-- Parser simples de argumentos: preserva espacos dentro de aspas.
+local function splitCommand(line)
+ local args,buf={},{}
+ local quote,escaped=nil,false
+ local function push()
+  if #buf>0 then args[#args+1]=table.concat(buf); buf={} end
+ end
+ for i=1,#line do
+  local ch=line:sub(i,i)
+  if escaped then buf[#buf+1]=ch; escaped=false
+  elseif ch=="\\" then escaped=true
+  elseif quote then
+   if ch==quote then quote=nil else buf[#buf+1]=ch end
+  elseif ch=="'" or ch=='"' then quote=ch
+  elseif ch:match("%s") then push()
+  else buf[#buf+1]=ch end
+ end
+ if escaped then buf[#buf+1]="\\" end
+ push()
+ return args
 end
+
+local function findProgram(program,currentDir,searchPath)
+ if program:sub(1,1)=="/" then
+  if fs.exists(program) and not fs.isDir(program) then return program end
+  if fs.exists(program..".lua") and not fs.isDir(program..".lua") then return program..".lua" end
+  return nil
+ end
+ local candidates={}
+ if program:find("/",1,true) then
+  candidates[#candidates+1]=fs.combine(currentDir,program)
+ else
+  candidates[#candidates+1]=fs.combine(currentDir,program)
+  for dir in searchPath:gmatch("[^:]+") do candidates[#candidates+1]=fs.combine(dir,program) end
+ end
+ for _,path in ipairs(candidates) do
+  if fs.exists(path) and not fs.isDir(path) then return path end
+  if fs.exists(path..".lua") and not fs.isDir(path..".lua") then return path..".lua" end
+ end
+ return nil
+end
+
+local function makeTerminalShell(initialDir)
+ local state={dir=initialDir or "/",path=(os.getenv and os.getenv("PATH")) or ".:/rom/programs:/rom/programs/turtle"}
+ local api={}
+ function api.dir() return state.dir end
+ function api.setDir(path)
+  local resolved=fs.combine(state.dir,path)
+  if not fs.exists(resolved) or not fs.isDir(resolved) then error("Not a directory",2) end
+  state.dir=resolved
+ end
+ function api.resolve(path) return fs.combine(state.dir,path) end
+ function api.path() return state.path end
+ function api.setPath(path) state.path=path end
+ function api.resolveProgram(command) return findProgram(command,state.dir,state.path) end
+ function api.getRunningProgram() return "/CrystalOS/system/apps.lua" end
+ local function execute(program,...)
+  if type(program)~="string" then error("program must be a string",2) end
+  local path=api.resolveProgram(program)
+  if not path then printError("No such program: "..program); return false end
+  local env=setmetatable({shell=api},{__index=_G})
+  env._G=env
+  return os.run(env,path,...)
+ end
+ function api.execute(program,...) return execute(program,...) end
+ function api.run(...)
+  local args=splitCommand(table.concat({...}," "))
+  if #args==0 then return false end
+  local program=table.remove(args,1)
+  return execute(program,unpack(args))
+ end
+ return api,state
+end
+
+function A.terminal(ui)
+ local shellApi,state=makeTerminalShell("/")
+ while true do
+  ui.clear(); ui.header("Terminal")
+  print("Terminal CrystalOS | comandos CraftOS")
+  print("Digite 'exit' para voltar ao CrystalOS.")
+  print("Diretorio: "..state.dir)
+  write(state.dir.."> ")
+  local cmd=read()
+  if not cmd or cmd=="exit" then return end
+  if cmd~="" then
+   local first=splitCommand(cmd)
+   if first[1]=="cd" then
+    local target=first[2] or "/"
+    local ok,err=pcall(shellApi.setDir,target)
+    if not ok then printError(tostring(err)); sleep(1) end
+   elseif first[1]=="pwd" then print(state.dir); sleep(1)
+   elseif first[1]=="clear" or first[1]=="cls" then
+    -- A proxima iteracao redesenha a tela do terminal.
+   else
+    local ok,result=pcall(shellApi.run,cmd)
+    if not ok then printError(tostring(result)); sleep(1) end
+   end
+  end
+ end
+end
+
 local function genericEditor(ui,app,path) editor(ui,app.name,path) end
 local function appHub(ui,catalog)
  local lines={}; for _,a in ipairs(catalog) do lines[#lines+1]=a.name.." ["..a.category.."] - "..a.description end
@@ -55,9 +154,13 @@ local function search(ui)
  local found={}; listFiles("/",q,found); ui.message("Resultados",#found==0 and "Nenhum arquivo encontrado." or table.concat(found,"\n"))
 end
 local function doctor(ui)
- local w,h=term.getSize(); local free=0; for _,p in ipairs(fs.list("/")) do free=free+1 end
+ local w,h=term.getSize(); local free=0
+ for _,p in ipairs(fs.list("/")) do free=free+1 end
  local modem=peripheral.find("modem")~=nil
- ui.message("Crystal Doctor","Diagnostico CraftOS\nTerminal: "..w.."x"..h.."\nItens na raiz: "..free.."\nModem detectado: "..tostring(modem).."\nHTTP disponivel: "..tostring(http~=nil).."\nEnergia/perifericos: consulte o computador hospedeiro.")
+ local sh=rawget(_G,"shell")
+ local shellRun=type(sh)=="table" and type(sh.run)=="function"
+ local shellExecute=type(sh)=="table" and type(sh.execute)=="function"
+ ui.message("Crystal Doctor","Diagnostico CraftOS\nTerminal: "..w.."x"..h.."\nItens na raiz: "..free.."\nModem detectado: "..tostring(modem).."\nHTTP disponivel: "..tostring(http~=nil).."\nAPI shell: "..tostring(type(sh)=="table").."\nshell.run: "..tostring(shellRun).."\nshell.execute: "..tostring(shellExecute).."\nos.run: "..tostring(type(os.run)=="function").."\nEnergia/perifericos: consulte o computador hospedeiro.")
 end
 local function appforge(ui)
  ui.clear(); ui.header("Crystal AppForge"); print("Criador simples de aplicativos CrystalOS.")
