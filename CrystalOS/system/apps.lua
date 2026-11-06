@@ -43,10 +43,10 @@ function A.calculator(ui)
 end
 -- Divide uma linha de comando em argumentos, respeitando aspas.
 -- Usado apenas quando a API shell.execute nao esta disponivel.
+-- Parser simples de argumentos: preserva espacos dentro de aspas.
 local function splitCommand(line)
  local args,buf={},{}
- local quote=nil
- local escaped=false
+ local quote,escaped=nil,false
  local function push()
   if #buf>0 then args[#args+1]=table.concat(buf); buf={} end
  end
@@ -65,13 +65,12 @@ local function splitCommand(line)
  return args
 end
 
-local function findProgram(program,currentDir)
+local function findProgram(program,currentDir,searchPath)
  if program:sub(1,1)=="/" then
   if fs.exists(program) and not fs.isDir(program) then return program end
-  if fs.exists(program..".lua") then return program..".lua" end
+  if fs.exists(program..".lua") and not fs.isDir(program..".lua") then return program..".lua" end
   return nil
  end
- local searchPath=(os.getenv and os.getenv("PATH")) or "/:/rom/programs:/rom/programs/turtle:/rom/programs/fun"
  local candidates={}
  if program:find("/",1,true) then
   candidates[#candidates+1]=fs.combine(currentDir,program)
@@ -86,61 +85,64 @@ local function findProgram(program,currentDir)
  return nil
 end
 
-local function runTerminalCommand(line,currentDir)
- local sh=rawget(_G,"shell")
- -- execute() interpreta a linha completa, incluindo argumentos e aspas.
- if type(sh)=="table" and type(sh.execute)=="function" then
-  return sh.execute(line),currentDir
+local function makeTerminalShell(initialDir)
+ local state={dir=initialDir or "/",path=(os.getenv and os.getenv("PATH")) or ".:/rom/programs:/rom/programs/turtle"}
+ local api={}
+ function api.dir() return state.dir end
+ function api.setDir(path)
+  local resolved=fs.combine(state.dir,path)
+  if not fs.exists(resolved) or not fs.isDir(resolved) then error("Not a directory",2) end
+  state.dir=resolved
  end
- local args=splitCommand(line)
- if #args==0 then return true,currentDir end
- local command=table.remove(args,1)
- if command=="cd" then
-  local target=args[1] or "/"
-  local path=fs.combine(currentDir,target)
-  if fs.exists(path) and fs.isDir(path) then return true,path end
-  print("cd: diretorio nao encontrado: "..target)
-  return false,currentDir
- elseif command=="pwd" then print(currentDir); return true,currentDir
- elseif command=="clear" or command=="cls" then term.clear(); term.setCursorPos(1,1); return true,currentDir
+ function api.resolve(path) return fs.combine(state.dir,path) end
+ function api.path() return state.path end
+ function api.setPath(path) state.path=path end
+ function api.resolveProgram(command) return findProgram(command,state.dir,state.path) end
+ function api.getRunningProgram() return "/CrystalOS/system/apps.lua" end
+ local function execute(program,...)
+  if type(program)~="string" then error("program must be a string",2) end
+  local path=api.resolveProgram(program)
+  if not path then printError("No such program: "..program); return false end
+  local env=setmetatable({shell=api},{__index=_G})
+  return os.run(env,path,...)
  end
- if type(sh)=="table" and type(sh.run)=="function" then
-  return sh.run(command,unpack(args)),currentDir
+ function api.execute(program,...) return execute(program,...) end
+ function api.run(...)
+  local args=splitCommand(table.concat({...}," "))
+  if #args==0 then return false end
+  local program=table.remove(args,1)
+  return execute(program,unpack(args))
  end
- -- Fallback para ambientes CraftOS sem a API global shell.
- if type(os.run)~="function" then
-  print("Este ambiente nao disponibiliza shell nem os.run; nao e possivel executar programas.")
-  return false,currentDir
- end
- local path=findProgram(command,currentDir)
- if not path then
-  print("Programa nao encontrado: "..command)
-  return false,currentDir
- end
- local ok,err=os.run(_G,path,unpack(args))
- if not ok and err then print(tostring(err)) end
- return ok,currentDir
+ return api,state
 end
 
 function A.terminal(ui)
- local currentDir="/"
+ local shellApi,state=makeTerminalShell("/")
  while true do
   ui.clear(); ui.header("Terminal")
   print("Terminal CrystalOS | comandos CraftOS")
   print("Digite 'exit' para voltar ao CrystalOS.")
-  print("Diretorio: "..currentDir)
-  while true do
-   write(currentDir.."> ")
-   local cmd=read()
-   if not cmd or cmd=="exit" then return end
-   if cmd~="" then
-    local callOK,commandOK,newDir=pcall(runTerminalCommand,cmd,currentDir)
-    if callOK and type(newDir)=="string" then currentDir=newDir
-    elseif not callOK then print("Erro ao executar comando: "..tostring(commandOK)) end
+  print("Diretorio: "..state.dir)
+  write(state.dir.."> ")
+  local cmd=read()
+  if not cmd or cmd=="exit" then return end
+  if cmd~="" then
+   local first=splitCommand(cmd)
+   if first[1]=="cd" then
+    local target=first[2] or "/"
+    local ok,err=pcall(shellApi.setDir,target)
+    if not ok then printError(tostring(err)); sleep(1) end
+   elseif first[1]=="pwd" then print(state.dir); sleep(1)
+   elseif first[1]=="clear" or first[1]=="cls" then
+    -- A proxima iteracao redesenha a tela do terminal.
+   else
+    local ok,result=pcall(shellApi.run,cmd)
+    if not ok then printError(tostring(result)); sleep(1) end
    end
   end
  end
 end
+
 local function genericEditor(ui,app,path) editor(ui,app.name,path) end
 local function appHub(ui,catalog)
  local lines={}; for _,a in ipairs(catalog) do lines[#lines+1]=a.name.." ["..a.category.."] - "..a.description end
