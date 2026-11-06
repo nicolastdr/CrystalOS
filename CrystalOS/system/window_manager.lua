@@ -47,7 +47,7 @@ function W.run(catalog,apps,ui,settings)
    end
   end
   screen.setBackgroundColor(colors.black); screen.setTextColor(colors.white)
-  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.5")
+  screen.setCursorPos(2,1); screen.write("◆ CRYSTALOS v0.9.6")
   for i,id in ipairs(shortcuts) do
    local app=appById(id)
    if app then
