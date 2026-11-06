@@ -6,7 +6,7 @@ local function get(url)
   -- Use a unique URL for every request so stale CDN responses cannot be reused.
   requestCounter = requestCounter + 1
   local stamp = (os.epoch and os.epoch("utc")) or os.time()
-  url = url .. "?crystalos_release=0.9.16&cb=" .. tostring(stamp) .. "-" .. tostring(requestCounter)
+  url = url .. "?crystalos_release=0.9.17&cb=" .. tostring(stamp) .. "-" .. tostring(requestCounter)
   local last = "HTTP request failed"
   for attempt = 1, 3 do
     local ok, response, reason = pcall(http.get, url, nil, true)
